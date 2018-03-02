@@ -9,7 +9,7 @@ module amplitudes_compass
 # using masses: mπ, mπ2
 using DalitzPlotAnalysis: change_basis, Z
 
-export λ, fρ, ff2, fρ3, fσ, ff0_980, ff0_1500, BlttWskpf
+export λ, fρ, ff2, fρ3, fσ, ff0_980, ff0_1500, BlttWskpf, COMPASS_wave
 
 """
     λ(x,y,z)
@@ -116,7 +116,7 @@ end
 
 # constract COMPASS basis
 # pwd()
-wavesload = readdlm("/localhome/mikhasenko/Documents/pwa_from_scratch/src/wavelist_formated.txt")
+wavesload = readdlm(pwd()*"/src/wavelist_formated.txt")
 isobarsV = [fσ,fρ,ff2,fρ3]
 isobarsS = [fσ,ff0_980,ff0_1500]
 
