@@ -5,9 +5,11 @@
 # export mπ, mπ2, mρ, mρ2, mτ, mτ2
 # end
 #
-module isobars
+module amplitudes_compass
 # using masses: mπ, mπ2
-export fρ, ff2, fρ3, fσ, ff0_980, ff0_1500, BlttWskpf
+using DalitzPlotAnalysis: change_basis, Z
+
+export λ, fρ, ff2, fρ3, fσ, ff0_980, ff0_1500, BlttWskpf
 
 """
     λ(x,y,z)
@@ -109,6 +111,44 @@ function fρ3(s::Number)
   qsq_R = 1/4.94^2;
   qsq = λ(s,mπ2, mπ2)/(4*s);
   return sqrt(m*G*sqrt(s))/(m*m-s-1im*m*G) * sqrt(BlttWskpf[3](qsq/qsq_R));
+end
+
+
+# constract COMPASS basis
+# pwd()
+wavesload = readdlm("/localhome/mikhasenko/Documents/pwa_from_scratch/src/wavelist_formated.txt")
+isobarsV = [fσ,fρ,ff2,fρ3]
+isobarsS = [fσ,ff0_980,ff0_1500]
+
+basis = []
+wavenames = []
+let flat(σ1,cosθ1,ϕ1,cosθ23,ϕ23,m1sq,m2sq,m3sq,s) = 1
+    push!(basis,flat)
+    push!(wavenames,"flat")
+end
+for i in 2:size(wavesload,1)
+    wn, name, J, P, M, ϵ, S, L = wavesload[i,:]
+    fi = (S ≥ 0) ? isobarsV[S+1] : isobarsS[1-S]
+    S = (S≥0 ? S : 0)
+    @eval function $(Symbol("wave_$(wn)"))(σ1,cosθ1,ϕ1,cosθ23,ϕ23,m1sq,m2sq,m3sq,s)
+#         println("\nwave ",$J," ",$P," ",$M," ",$ϵ," ",$L," ",$S)
+        τ3 = [0.0,0.0,0.0,0.0]
+        σ3,τ3[1],τ3[2],τ3[3],τ3[4] = change_basis(σ1,cosθ1,ϕ1,cosθ23,ϕ23,m1sq,m2sq,m3sq,s)
+        τ3[3] *= -1; τ3[4] += π
+        R = 5;
+        bw1 = ($L == 0) ? 1.0 : BlttWskpf[$L]($λ(s,σ1,m1sq)/(4s)*R^2)
+        bw3 = ($L == 0) ? 1.0 : BlttWskpf[$L]($λ(s,σ3,m3sq)/(4s)*R^2)
+        return Z($J,$M,($P==$ϵ),$L,$S,cosθ1,ϕ1,cosθ23,ϕ23)*$(fi)(σ1)*bw1 +
+               Z($J,$M,($P==$ϵ),$L,$S,τ3...)              *$(fi)(σ3)*bw3
+    end
+    push!(wavenames,name)
+    @eval push!(basis, $(Symbol("wave_$(wn)")))
+end
+
+function COMPASS_wave(i,s,σ1,cosθ1,ϕ1,cosθ23,ϕ23)
+    (i <  1) && return 0;
+    (i > 88) && return 0;
+    basis[i](σ1,cosθ1,ϕ1,cosθ23,ϕ23,mπ2,mπ2,mπ2,s)
 end
 
 end
