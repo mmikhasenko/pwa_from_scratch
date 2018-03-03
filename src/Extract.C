@@ -79,8 +79,101 @@ void apply_to_all(std::function<void(double*)> f, std::vector<double*> arr) {
   for (auto v : arr) f(v);
 }
 
-int Extract(const char* file)
-{
+
+void print_ph_parameters(double p0[], double p1[], double p2[], double p3[]) {
+
+  double p123[4], p23 [4];
+
+  add(p2,p3,p23);
+  add(p1,p23,p123);
+  double s = invmasssq(p123);
+  double sigma1 = invmasssq(p23);
+  double th123 = acos(costheta(p123));
+  double ph123 = phi(p123);
+  // rotz(p1,-ph123); roty(p1,-th123);
+
+  apply_to_all([&](double *p)->void{rotz(p,-ph123); roty(p,-th123);}, {p1,p2,p3,p0});
+
+  // boost to CMS
+  double gamma1=p123[3]/(sqrt(invmasssq(p123)));
+  apply_to_all([&](double *p)->void{boost(p,-gamma1);},
+               {p1,p2,p3,p0});
+  // rot to align beam along z
+  double thb = acos(costheta(p0));
+  double phb = phi(p0);
+  apply_to_all([&](double *p)->void{rotz(p,-phb); roty(p,-thb);},
+               {p1,p2,p3,p0});
+
+
+
+  // measure Omega1
+  add(p2,p3,p23);
+  double th1=acos(costheta(p23));
+  double theta1=costheta(p23);
+  double ph1=phi(p23);
+  // rot to align (23) to z axis
+  apply_to_all([&](double *p)->void{rotz(p,-ph1); roty(p,-th1);},
+               {p1,p2,p3,p0});
+  // boost to 2,3 frame
+  add(p2,p3,p23);
+  double gamma23=p23[3]/(sqrt(invmasssq(p23)));
+  apply_to_all([&](double *p)->void{boost(p,-gamma23);}, {p1,p2,p3,p0});
+  // measure Omega23
+  double th23=costheta(p2);
+  double ph23=phi(p2);
+
+
+  cout << s << " " << sigma1 << " " << theta1 << " " << ph1 << " " << th23 << " " << ph23 << "\n";
+
+}
+
+int ExtractMC(const char* file) {
+  double p0[4],p1[4],p2[4],p3[4];
+  TFile *fin = TFile::Open(file); if (!fin) return 1;
+  TTree *tree = (TTree*)fin->Get("USR51MCout"); if (!tree) return 1;
+
+
+  long nentries = tree->GetEntries();
+
+  tree->SetBranchAddress("px0_MCTruth", &p0[0]);
+  tree->SetBranchAddress("py0_MCTruth", &p0[1]);
+  tree->SetBranchAddress("pz0_MCTruth", &p0[2]);
+  tree->SetBranchAddress("px1_MCTruth", &p1[0]);
+  tree->SetBranchAddress("py1_MCTruth", &p1[1]);
+  tree->SetBranchAddress("pz1_MCTruth", &p1[2]);
+  tree->SetBranchAddress("px2_MCTruth", &p2[0]);
+  tree->SetBranchAddress("py2_MCTruth", &p2[1]);
+  tree->SetBranchAddress("pz2_MCTruth", &p2[2]);
+  tree->SetBranchAddress("px3_MCTruth", &p3[0]);
+  tree->SetBranchAddress("py3_MCTruth", &p3[1]);
+  tree->SetBranchAddress("pz3_MCTruth", &p3[2]);
+
+  // cuts
+  int accepted_reco;
+
+  tree->SetBranchAddress("accepted_reco", &accepted_reco);
+
+  for (int i=0;i<nentries;i++) {
+    tree->GetEntry(i);
+    if (accepted_reco != 1) continue;
+
+    // process with event
+
+    p0[3] = energy(p0,MASSPISQ);
+    p1[3] = energy(p1,MASSPISQ);
+    p2[3] = energy(p2,MASSPISQ);
+    p3[3] = energy(p3,MASSPISQ);
+
+    print_ph_parameters(p0,p1,p2,p3);
+
+  }
+
+  return 0;
+  
+}
+
+
+int ExtractRD(const char* file) {
   double p0[4],p1[4],p2[4],p3[4];
   TFile *fin = TFile::Open(file); if (!fin) return 1;
   TTree *tree = (TTree*)fin->Get("USR52mb"); if (!tree) return 1;
@@ -101,60 +194,63 @@ int Extract(const char* file)
   tree->SetBranchAddress("py3", &p3[1]);
   tree->SetBranchAddress("pz3", &p3[2]);
 
-  for (int i=0;i<nentries;i++)
-  {
-      tree->GetEntry(i);
-      p0[3] = energy(p0,MASSPISQ);
-      p1[3] = energy(p1,MASSPISQ);
-      p2[3] = energy(p2,MASSPISQ);
-      p3[3] = energy(p3,MASSPISQ);
+  // cuts
+  bool IsTriggered, IsInTarget, IsExclusive, IsInT,
+    CentralProdVeto, IsInBeamTime, RICH_Veto, CEDAR_Veto, IsInDeltaPhi,
+    CorrectNbrRPDTracks, IsPlanar, IsPlanar_extended;
 
+  tree->SetBranchAddress("IsTriggered",         &IsTriggered);
+  tree->SetBranchAddress("IsInTarget",          &IsInTarget);
+  tree->SetBranchAddress("IsExclusive",         &IsExclusive);
+  tree->SetBranchAddress("IsInT" ,              &IsInT);
+  tree->SetBranchAddress("CentralProdVeto",     &CentralProdVeto);
+  tree->SetBranchAddress("IsInBeamTime",        &IsInBeamTime);
+  tree->SetBranchAddress("RICH_Veto",           &RICH_Veto);
+  tree->SetBranchAddress("CEDAR_Veto",          &CEDAR_Veto);
+  tree->SetBranchAddress("IsInDeltaPhi",        &IsInDeltaPhi);
+  tree->SetBranchAddress("CorrectNbrRPDTracks", &CorrectNbrRPDTracks);
+  tree->SetBranchAddress("IsPlanar",            &IsPlanar);
+  tree->SetBranchAddress("IsPlanar_extended",   &IsPlanar_extended);
 
-      double p123[4], p23 [4];
+  for (int i=0;i<nentries;i++) {
+    tree->GetEntry(i);
+    if (
+        !IsTriggered || 
+        !IsInTarget  ||
+        !IsExclusive || 
+        !IsInT  ||
+        CentralProdVeto ||
+        !IsInBeamTime ||
+        RICH_Veto ||
+        CEDAR_Veto ||
+        // IsInDeltaPhi != 0 ||
+        !CorrectNbrRPDTracks ||
+        // IsPlanar != 0 ||
+        !IsPlanar_extended
+        ) continue;
 
+    // process with event
 
-      add(p2,p3,p23);
-      add(p1,p23,p123);
-      double s = invmasssq(p123);
-      double sigma1 = invmasssq(p23);
-      double th123 = acos(costheta(p123));
-      double ph123 = phi(p123);
-      // rotz(p1,-ph123); roty(p1,-th123);
+    p0[3] = energy(p0,MASSPISQ);
+    p1[3] = energy(p1,MASSPISQ);
+    p2[3] = energy(p2,MASSPISQ);
+    p3[3] = energy(p3,MASSPISQ);
 
-      apply_to_all([&](double *p)->void{rotz(p,-ph123); roty(p,-th123);}, {p1,p2,p3,p0});
+    print_ph_parameters(p0,p1,p2,p3);
 
-      // boost to CMS
-      double gamma1=p123[3]/(sqrt(invmasssq(p123)));
-      apply_to_all([&](double *p)->void{boost(p,-gamma1);},
-                   {p1,p2,p3,p0});
-      // rot to align beam along z
-      double thb = acos(costheta(p0));
-      double phb = phi(p0);
-      apply_to_all([&](double *p)->void{rotz(p,-phb); roty(p,-thb);},
-                   {p1,p2,p3,p0});
+  }
 
+  return 0;
+}
 
-
-        // measure Omega1
-       add(p2,p3,p23);
-       double th1=acos(costheta(p23));
-       double theta1=costheta(p23);
-       double ph1=phi(p23);
-       // rot to align (23) to z axis
-       apply_to_all([&](double *p)->void{rotz(p,-ph1); roty(p,-th1);},
-                    {p1,p2,p3,p0});
-        // boost to 2,3 frame
-        add(p2,p3,p23);
-        double gamma23=p23[3]/(sqrt(invmasssq(p23)));
-        apply_to_all([&](double *p)->void{boost(p,-gamma23);}, {p1,p2,p3,p0});
-        // measure Omega23
-        double th23=costheta(p2);
-        double ph23=phi(p2);
-
-
-         cout << s << " " << sigma1 << " " << theta1 << " " << ph1 << " " << th23 << " " << ph23 << "\n";
-
-   }
-
+int Extract(const char* file, char flag = 'D') {
+  if (flag != 'D' && flag != 'M') {
+    std::cout << "There are two options for the second argument"
+            << "\n\t'D' for real data" 
+            << "\n\t'M' for monteCarlo data\n";
+    return 0;
+  }
+  if (flag == 'D') ExtractRD(file);
+  if (flag == 'M') ExtractMC(file);
   return 0;
 }
