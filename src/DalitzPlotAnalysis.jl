@@ -1,5 +1,5 @@
 module DalitzPlotAnalysis
-export change_basis, ClebschGordon, Wignerd, Z
+export change_basis, ClebschGordon, Wignerd, WignerDϵ, Z
 
 import Base: Math.atan2
 """
