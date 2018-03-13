@@ -92,8 +92,8 @@ const logfact = [sum(log(n) for n in 1:i) for i in 1:50]
 lf(i) = (i>0) ? logfact[i] :  0.0;
 
 function Wignerd(aj::Rational{Int64}, am::Rational{Int64}, an::Rational{Int64}, β)
-    (β==0) && return (am==an) ? one(β) : zero(β)
-    (β==0) && return (am==-an) ? ((j-m)%2==1 ? -one(β) : one(β))  : zero(β)
+    (β == zero(β)) && return (am==an) ? one(β) : zero(β)
+    (β == zero(β)) && return (am==-an) ? ((aj-am)%2==1 ? -one(β) : one(β))  : zero(β)
 
     jpm = convert(Int64,aj+am);
     jpn = convert(Int64,aj+an);
@@ -128,11 +128,11 @@ Wignerd(aj::Int64, am::Int64, an::Int64, β) = Wignerd(aj//1,am//1,an//1,β)
 WignerD(aj::Int64, am::Int64, an::Int64, α, β, γ) = Wignerd(aj//1,am//1,an//1,β)*cis(-(am*α+an*γ))
 # WignerDϵ
 function WignerDϵ(ϵ::Bool,aj::Int64, am::Int64, an::Int64, α, β, γ)
-    (am < 0) && return 0.0;
+    (am < zero(am)) && return 0.0im;
     WDMp = WignerD(aj,am,an,α,β,γ)
     WDMm = (am == 0) ? WDMp : WignerD(aj,-am,an,α, β, γ);
     factor = (2ϵ-1) * (2((aj-am)%2==0)-1);
-    return (WDMp - factor * WDMm) / (am == 0 ? 2. : sqrt(2.));
+    return (WDMp - factor * WDMm) / (am == zero(am) ? 2.0 : sqrt(2.0));
 end
 
 import GSL: sf_coupling_3j
@@ -168,8 +168,8 @@ function Z(J::Int64,M::Int64,L::Int64,l::Int64,cosθ1,ϕ1,cosθ23,ϕ23)
     rng_lm = min(l,J);
     θ1 = acos(cosθ1)
     θ23 = acos(cosθ23)
-    sum([ClebschGordon(L,0,l,lm,J,lm)*sqrt((2*L+1)*(2*l+1))*
-        WignerD(J,M,lm,ϕ1,θ1,0.0)*WignerD(l,lm,0,ϕ23,θ23,0.0) for lm=-rng_lm:1:rng_lm])
+    sum(ClebschGordon(L,0,l,lm,J,lm)*sqrt((2*L+1)*(2*l+1))*
+        WignerD(J,M,lm,ϕ1,θ1,0.0)*WignerD(l,lm,0,ϕ23,θ23,0.0) for lm=-rng_lm:1:rng_lm)
 end
 
 
@@ -177,8 +177,8 @@ function Z(J::Int64,M::Int64,ϵ::Bool,L::Int64,l::Int64,cosθ1,ϕ1,cosθ23,ϕ23)
     rng_lm = min(l,J);
     θ1 = acos(cosθ1)
     θ23 = acos(cosθ23)
-    sum([ClebschGordon(L,0,l,lm,J,lm)*sqrt((2*L+1)*(2*l+1))*
-        WignerDϵ(ϵ,J,M,lm,ϕ1,θ1,0.0)*WignerD(l,lm,0,ϕ23,θ23,0.0) for lm=-rng_lm:1:rng_lm])
+    sum(ClebschGordon(L,0,l,lm,J,lm)*sqrt((2*L+1)*(2*l+1))*
+        WignerDϵ(ϵ,J,M,lm,ϕ1,θ1,0.0)*WignerD(l,lm,0,ϕ23,θ23,0.0) for lm=-rng_lm:1:rng_lm)
 end
 
 # Z(1,0,false,0,1,0.1,0.0,0.1,0.0)
