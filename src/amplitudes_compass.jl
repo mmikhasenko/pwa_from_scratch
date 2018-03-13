@@ -30,7 +30,8 @@ const Γρ = 0.1491; #  from PDG2016
 ################### SIGMA #################
 # AMP Table 1, M solution: f_2^2
 # AMP Table 1, M solution: f_1^1 and f_2^1
-const _a = [0.1131, 0.1968^2]
+# Last item is Katchaev modification
+const _a = [0.1131, 0.0]
 
 # AMP Table 1, M solution: c_11^0
 # last item - Katchaev modification
@@ -205,73 +206,3 @@ end
 
 end
 
-
-# For three years I was deeply involved in the data reconstruction and analysis at VES experiment. My work was focused on the selection and analysis of the pi-pi0 system produced via peripheral scattering of the pion beam off a nucleon in the Beryllium target.
-# It was required select good event candidates from 10^7 data sample collected in 2011-2012. Neutral pion was reconstructed by the fit of energy clusters in the electromagnetic calorimeter. The shower profile was measured in with electron beam, calibration
-# The 1C-kinematical constraint for the pi0 mass was applied.
-
-
-
-# 1) Physics simulations
-#   I started my research with the physics simulation project which was suggested as a bachelor topic. The studies were dedicated to the idea of the active target detector for VES experiment. A bundle of the scintillating fibers was supposed to replace the target for the scattering experiment aiming to detect the recoil system.
-#   Later, I worked on Geant4-simulations of the lead converters to improve acceptance for the neutral particles at VES experiment.
-#   During my PhD, I had a chance to run Geant4 based COMPASS simulations. I implemented new event generator and advised a bachelor project for acceptance studies for the reaction pi- p -> pi- eta p at COMPASS.
-#
-# 2) Data reduction and numerical analysis
-#   During my master studies, I was deeply involved in the data reconstruction and analysis at VES experiment. My main project was the selection and analysis of the pi-pi0 system produced via peripheral scattering of the pion beam off a nucleon in the Beryllium target. It was required to select good event candidates from 10^7 data sample collected in 2011-2012.
-#
-#
-# 3)
-#
-# Neutral pion was reconstructed from showers information in electromagnetic calorimeter
-# The 1C-kinematical constraint for the pi0 mass was applied.
-#
-# The largest computation
-#
-# List of reactions I worked on, referenced below.
-# (1) pi-N->pi-pi0 N',
-# (2) pi-p->pi-eta p', eta->gg, eta->3pi,
-# (3a/b) pi-p->3pi/pi-2pi0 p',
-# (4a/b) tau -> 3p/pi-2pi0i nu,
-# (5) B->J/Psi pi K
-# (6) e+e-->J/Psi pi+pi-
-# 
-# 1) Physics simulations
-#   = my bachelor project was dedicated to the studies of the active target detector. I worked on the Geant4 model and reconstruction algorithm for the bundle of the scintillating fibers used as the recoil detection system.
-#   = I worked on Geant4-simulations of the lead converters to improve acceptance for the neutral particles at VES experiment.
-#   = Acceptance studies for (1) was a part of my master project.
-#   = Geant4 based COMPASS simulations. I implemented new event generator and advised a bachelor project for acceptance studies for the reaction (2) at COMPASS.
-#
-# 2) Data reduction and numerical analysis
-#   = I was involved in the reconstruction and analyses at VES experiment. I performed the event selection and the partial wave analysis of the pi-pi0 in reaction (1). The significant background from the reaction (3) was simulated and subtracted.
-#   = My work at COMPASS was focused on the numerical analyses related to the reaction (3a). I tested various theoretical models to the dynamics in partial waves on the COMPASS data. Pole positions for a1 and pi2 mesons were obtained. The exotic meson candidate was described as the rescattering phenomenon.
-#
-# 3) Theoretical calculations:
-#   = Rescattering corrections in the system of three pions for the reaction (3a).
-# Effective Lagrangian and dispersive theory.
-#   = Tensor and helicity formalisms. The amplitude model for the reaction (5).
-#
-# 4) Teaching and advising
-#   = Lecturer at the Reaction Theory School
-#   = Advising 3 master- and 1 bachelor- students
-#
-#
-#   "Nature of the a1(1420)", Phys. Rev. D91.9, p. 094015, 3 authors, inspire id 1341619.
-#   personal contribution: all calculations, text
-#
-#   "What is the right formalism to search for resonances?" arXiv: 1712.02815 [hep-ph], accepted by EPJC, 10 authors, inspire id 1642229
-#   personal contribution: all calculations, text
-#
-#   "New analysis of etapi tensor resonances measured at the COMPASS
-#   experiment", arXiv: 1707.02848 [hep-ph], 235 authors, inspire id 1609260
-#   personal contribution: cross-check of calculation and fit results, corrections to the text
-#
-#   "Amplitude analysis and the nature of the Zc(3900)", Phys. Lett.
-#   B772, pp. 200–209, 7 authors, inspire id 1505197
-#   personal contribution: cross-check of calculation, corrections to the text
-#
-#   "Light isovector resonances in pi-pp>3pi p at 190 GeV/c", arXiv:1802.05913 [hep-ex], sent to EPJC, 214 authors, inspire id 1655631
-#   personal contribution: appendix A, corrections to text
-#
-#   "Unitarity approach to the mass-dependent fit of 3pi resonance production data from the COMPASS experiment", EPJ Web Conf. 137, p. 05017, 4 authors, inspire id 1519590
-#   personal contributions: formalism, calculations, fits, text.
