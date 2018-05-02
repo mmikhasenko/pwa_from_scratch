@@ -14,11 +14,13 @@ Kaellen triangle function defined by
 """
 λ(x::Number,y::Number,z::Number) = x^2+y^2+z^2-2*x*y-2*y*z-2*z*x
 
-const mπ = 0.139570; const mπ2 = mπ^2;
+const mπ = 0.13956755; const mπ2 = mπ^2;
 const mK = 0.493677; const mK2 = mK^2;
 const mK0 = 0.497614; const mK02 = mK0^2;
-const mρ = 0.77526; # from PDG2016
-const Γρ = 0.1491; #  from PDG2016
+const mρ = 0.7685
+const Γρ = 0.1507;
+
+export mπ, mπ2
 
 ################### SIGMA #################
 # AMP Table 1, M solution: f_2^2
@@ -134,6 +136,9 @@ for i in 2:size(wavesload,1)
     S = (S≥0 ? S : 0)
     @eval function $(Symbol("wave_$(wn)"))(σ1,cosθ1,ϕ1,cosθ23,ϕ23,m1sq,m2sq,m3sq,s)
 #         println("\nwave ",$J," ",$P," ",$M," ",$ϵ," ",$L," ",$S)
+        # if (sqrt(σ1) < (sqrt(m2sq)+sqrt(m3sq))) || ((sqrt(σ1) > (sqrt(s)-sqrt(m1sq))))
+        #     error("Check your masses. There is inconsitency, probably.")
+        # end
         τ3 = Vector{Float64}(4)
         σ3,τ3[1],τ3[2],τ3[3],τ3[4] = change_basis(σ1,cosθ1,ϕ1,cosθ23,ϕ23,m1sq,m2sq,m3sq,s)
         τ3[3] *= -1; τ3[4] += π
