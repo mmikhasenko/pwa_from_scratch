@@ -74,7 +74,7 @@ function fρ(s::Number)
     ρ  = 1/(8*π)*2*p/sqrt(s)
     ρ0 = 1/(8*π)*2*p0/mρ
     # extra factor due to the spin of ρ
-    R = 5
+    R = 4.94 # it was 5
     ff = p^2/p0^2*(1./R^2+p0^2)/(1./R^2+p^2)
     mΓ = mρ*Γρ*ρ/ρ0*ff
     return sqrt(ff)/(mρ^2-s -1.0im*mΓ) #
@@ -90,9 +90,9 @@ const BlttWskpf = [z->z/(1+z),
 function ff2(s::Number)
     mπ = 0.13956755;
     mπ2 = mπ^2;
-    m = 1.2754;
-    G = 0.1852;
-    qsq_R = 1.0/5^2;
+    m = 1.274;  # it was 1.2754; 
+    G = 0.185;  # it was 0.1852;
+    qsq_R = 1.0/4.94^2; # it was 5
     qsq = λ(s,mπ2, mπ2)/(4*s);
     qsq0 = λ(m^2,mπ2, mπ2)/(4*m^2);
     ff = sqrt(qsq/qsq0)*m/sqrt(s)*BlttWskpf[2](qsq/qsq_R)/BlttWskpf[2](qsq0/qsq_R);
@@ -142,7 +142,7 @@ for i in 2:size(wavesload,1)
         τ3 = Vector{Float64}(4)
         σ3,τ3[1],τ3[2],τ3[3],τ3[4] = change_basis(σ1,cosθ1,ϕ1,cosθ23,ϕ23,m1sq,m2sq,m3sq,s)
         τ3[3] *= -1; τ3[4] += π
-        R = 5;
+        R = 1/0.2024; #it was 5
         bw1 = ($L == 0) ? 1.0 : BlttWskpf[$L]($λ(s,σ1,m1sq)/(4s)*R^2)
         bw3 = ($L == 0) ? 1.0 : BlttWskpf[$L]($λ(s,σ3,m3sq)/(4s)*R^2)
         return Z($J,$M,($P==$ϵ),$L,$S,cosθ1,ϕ1,cosθ23,ϕ23)*$(fi)(σ1)*bw1 +
@@ -169,7 +169,7 @@ function COMPASS_waves(s,σ1,cosθ1,ϕ1,cosθ23,ϕ23)
     Zϵf1[1] = 0.5+0.0im;
     const iV = [f(σ1) for f in isobarsV]
     const iS = [f(σ1) for f in isobarsS]
-    const R = 5.0;
+    const R = 1/0.2024; #it was 5
     const bw1 = [(L == 0) ? 1.0 : BlttWskpf[L](λ(s,σ1,m1sq)/(4s)*R^2) for L=0:6];
     for i in 2:size(wavesload,1)
         wn, name, J, P, M, ϵ, S, L = wavesload[i,:]
