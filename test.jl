@@ -8,7 +8,7 @@ using Plots
 m3π = collect(0.5:0.01:2.5)
 
 Φ(s, m1sq, m2sq) = (s > (sqrt(m1sq)+sqrt(m2sq))^2) ? sqrt(λ(s, m1sq, m2sq))/(8 * π * s) : 0
-function everything(i::Int64)
+function everything(i::Int64, folder = "output")
   function total(s, i::Int64)
     function integrand(x,f)
       s3min = 4.0 * mπ2
@@ -31,30 +31,20 @@ function everything(i::Int64)
         push!(result,preresult[index][1][1])
       end
 
-
-  writedlm("output_new/h$(i).txt",[m3π result])
+  writedlm("$(folder)/h$(i).txt",[m3π result])
   return result
 end
 ## calculating integrals
-misha = []
-for index in [2,3,4,5,6,7,9,11,16,18]
-  push!(misha, everything(index))
-end
-## plotting
-function CreatePlot(i::Int64)
-  stephan = readdlm("/mnt/data/compass/2008/integrals_stefan/h$(i).tc.out")
-  misha = readdlm("output_new/h$(i).txt")
-  stephan[1:201,2] ./= (stephan[1:201,1])
-  let p = sum(stephan[1:201,2])
-          plot(stephan[1:201,1],stephan[1:201,2]./p,label="stephan")
-  end
-  let p = sum(misha[:,2])
-          plot!(m3π, misha[:,2]./p,label="misha")
-  end
+
+
+for index in [2]
+  everything(index, "output_new")
 end
 
+
+
 ## interference 
-function interference(i::Int64, j::Int64)
+function interference(i::Int64, j::Int64, folder = "output")
   function total2(s, i::Int64, j::Int64)
     function integrand2(x,f)
       s3min = 4.0 * mπ2
@@ -80,12 +70,8 @@ function interference(i::Int64, j::Int64)
     push!(resultim,preresult[index][1][2])
   end
 
-
-  writedlm("output_new/h$(i)_$(j).txt",[m3π resultre resultim])
+  writedlm("$(folder)/h$(i)_$(j).txt",[m3π resultre resultim])
   return resultre, resultim
 end
 
-inter211 = interference(2,11)
-## test stuff
-CreatePlot(1)
-result
+interference(2,11, "output_new")
