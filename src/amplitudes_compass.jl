@@ -17,8 +17,6 @@ Kaellen triangle function defined by
 const mπ = 0.13956755; const mπ2 = mπ^2;
 const mK = 0.493677; const mK2 = mK^2;
 const mK0 = 0.497614; const mK02 = mK0^2;
-const mρ = 0.7685
-const Γρ = 0.1507;
 
 export mπ, mπ2
 
@@ -67,6 +65,7 @@ function ff0_1500(s::Number)
 end
 
 function fρ(s::Number)
+    const mρ = 0.7685; const Γρ = 0.1507;
     # break up momentum
     p  = sqrt(λ(mπ2,mπ2,s)/(4*s));
     p0 = sqrt(λ(mπ2,mπ2,mρ^2))/(2*mρ);
@@ -76,7 +75,7 @@ function fρ(s::Number)
     # extra factor due to the spin of ρ
     R = 4.94 # it was 5
     ff = p^2/p0^2*(1./R^2+p0^2)/(1./R^2+p^2)
-    mΓ = mρ*Γρ*ρ/ρ0*ff
+    mΓ = mρ*Γρ*p/p0*ff  #changed from ρ/ρ0 to p/p0
     return sqrt(ff)/(mρ^2-s -1.0im*mΓ) #
 end
 
@@ -145,8 +144,8 @@ for i in 2:size(wavesload,1)
         R = 1/0.2024; #it was 5
         bw1 = ($L == 0) ? 1.0 : BlttWskpf[$L]($λ(s,σ1,m1sq)/(4s)*R^2)
         bw3 = ($L == 0) ? 1.0 : BlttWskpf[$L]($λ(s,σ3,m3sq)/(4s)*R^2)
-        return Z($J,$M,($P==$ϵ),$L,$S,cosθ1,ϕ1,cosθ23,ϕ23)*$(fi)(σ1)*bw1 +
-               Z($J,$M,($P==$ϵ),$L,$S,τ3...)              *$(fi)(σ3)*bw3
+        return Z($J,$M,($P==$ϵ),$L,$S,cosθ1,ϕ1,cosθ23,ϕ23)*$(fi)(σ1)*sqrt(bw1) +
+               Z($J,$M,($P==$ϵ),$L,$S,τ3...)              *$(fi)(σ3)*sqrt(bw3)
     end
     push!(wavenames,name)
     @eval push!(basis, $(Symbol("wave_$(wn)")))
@@ -178,7 +177,7 @@ function COMPASS_waves(s,σ1,cosθ1,ϕ1,cosθ23,ϕ23)
         Zϵf1[i] = sum(ClebschGordon(L,0,S,lm,J,lm)*sqrt((2*L+1)*(2*S+1))*
                         Dϵ1[J+1,M+1,1+(ϵ==P),4+lm]*D1[1+S,4+lm]
                          for lm=-min(S,J):min(S,J))*
-                fi*bw1[L+1];
+                fi*sqrt(bw1[L+1]);
     end
     # system 3 <-> 12
     τ3 = Vector{Float64}(4)
@@ -199,7 +198,7 @@ function COMPASS_waves(s,σ1,cosθ1,ϕ1,cosθ23,ϕ23)
         S = (S≥0 ? S : 0)
         Zϵf3[i] = sum(ClebschGordon(L,0,S,lm,J,lm)*sqrt((2*L+1)*(2*S+1))*
                             Dϵ3[J+1,M+1,1+(ϵ==P),4+lm]*D3[1+S,4+lm] for lm=-min(S,J):min(S,J))*
-                        fi*bw3[L+1];
+                        fi*sqrt(bw3[L+1]);
     end
     (Zϵf1 + Zϵf3)
     # Zϵf1
