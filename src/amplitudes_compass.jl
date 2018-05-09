@@ -14,11 +14,11 @@ Kaellen triangle function defined by
 """
 λ(x::Number,y::Number,z::Number) = x^2+y^2+z^2-2*x*y-2*y*z-2*z*x
 
-const mπ = 0.139570; const mπ2 = mπ^2;
+const mπ = 0.13956755; const mπ2 = mπ^2;
 const mK = 0.493677; const mK2 = mK^2;
 const mK0 = 0.497614; const mK02 = mK0^2;
-const mρ = 0.77526; # from PDG2016
-const Γρ = 0.1491; #  from PDG2016
+
+export mπ, mπ2
 
 ################### SIGMA #################
 # AMP Table 1, M solution: f_2^2
@@ -65,6 +65,7 @@ function ff0_1500(s::Number)
 end
 
 function fρ(s::Number)
+    const mρ = 0.7685; const Γρ = 0.1507;
     # break up momentum
     p  = sqrt(λ(mπ2,mπ2,s)/(4*s));
     p0 = sqrt(λ(mπ2,mπ2,mρ^2))/(2*mρ);
@@ -72,9 +73,9 @@ function fρ(s::Number)
     ρ  = 1/(8*π)*2*p/sqrt(s)
     ρ0 = 1/(8*π)*2*p0/mρ
     # extra factor due to the spin of ρ
-    R = 5
+    R = 4.94 # it was 5
     ff = p^2/p0^2*(1./R^2+p0^2)/(1./R^2+p^2)
-    mΓ = mρ*Γρ*ρ/ρ0*ff
+    mΓ = mρ*Γρ*p/p0*ff  #changed from ρ/ρ0 to p/p0
     return sqrt(ff)/(mρ^2-s -1.0im*mΓ) #
 end
 
@@ -88,9 +89,9 @@ const BlttWskpf = [z->z/(1+z),
 function ff2(s::Number)
     mπ = 0.13956755;
     mπ2 = mπ^2;
-    m = 1.2754;
-    G = 0.1852;
-    qsq_R = 1.0/5^2;
+    m = 1.274;  # it was 1.2754; 
+    G = 0.185;  # it was 0.1852;
+    qsq_R = 1.0/4.94^2; # it was 5
     qsq = λ(s,mπ2, mπ2)/(4*s);
     qsq0 = λ(m^2,mπ2, mπ2)/(4*m^2);
     ff = sqrt(qsq/qsq0)*m/sqrt(s)*BlttWskpf[2](qsq/qsq_R)/BlttWskpf[2](qsq0/qsq_R);
@@ -134,14 +135,17 @@ for i in 2:size(wavesload,1)
     S = (S≥0 ? S : 0)
     @eval function $(Symbol("wave_$(wn)"))(σ1,cosθ1,ϕ1,cosθ23,ϕ23,m1sq,m2sq,m3sq,s)
 #         println("\nwave ",$J," ",$P," ",$M," ",$ϵ," ",$L," ",$S)
+        # if (sqrt(σ1) < (sqrt(m2sq)+sqrt(m3sq))) || ((sqrt(σ1) > (sqrt(s)-sqrt(m1sq))))
+        #     error("Check your masses. There is inconsitency, probably.")
+        # end
         τ3 = Vector{Float64}(4)
         σ3,τ3[1],τ3[2],τ3[3],τ3[4] = change_basis(σ1,cosθ1,ϕ1,cosθ23,ϕ23,m1sq,m2sq,m3sq,s)
         τ3[3] *= -1; τ3[4] += π
-        R = 5;
+        R = 1/0.2024; #it was 5
         bw1 = ($L == 0) ? 1.0 : BlttWskpf[$L]($λ(s,σ1,m1sq)/(4s)*R^2)
         bw3 = ($L == 0) ? 1.0 : BlttWskpf[$L]($λ(s,σ3,m3sq)/(4s)*R^2)
-        return Z($J,$M,($P==$ϵ),$L,$S,cosθ1,ϕ1,cosθ23,ϕ23)*$(fi)(σ1)*bw1 +
-               Z($J,$M,($P==$ϵ),$L,$S,τ3...)              *$(fi)(σ3)*bw3
+        return Z($J,$M,($P==$ϵ),$L,$S,cosθ1,ϕ1,cosθ23,ϕ23)*$(fi)(σ1)*sqrt(bw1) +
+               Z($J,$M,($P==$ϵ),$L,$S,τ3...)              *$(fi)(σ3)*sqrt(bw3)
     end
     push!(wavenames,name)
     @eval push!(basis, $(Symbol("wave_$(wn)")))
@@ -164,7 +168,7 @@ function COMPASS_waves(s,σ1,cosθ1,ϕ1,cosθ23,ϕ23)
     Zϵf1[1] = 0.5+0.0im;
     const iV = [f(σ1) for f in isobarsV]
     const iS = [f(σ1) for f in isobarsS]
-    const R = 5.0;
+    const R = 1/0.2024; #it was 5
     const bw1 = [(L == 0) ? 1.0 : BlttWskpf[L](λ(s,σ1,m1sq)/(4s)*R^2) for L=0:6];
     for i in 2:size(wavesload,1)
         wn, name, J, P, M, ϵ, S, L = wavesload[i,:]
@@ -173,7 +177,7 @@ function COMPASS_waves(s,σ1,cosθ1,ϕ1,cosθ23,ϕ23)
         Zϵf1[i] = sum(ClebschGordon(L,0,S,lm,J,lm)*sqrt((2*L+1)*(2*S+1))*
                         Dϵ1[J+1,M+1,1+(ϵ==P),4+lm]*D1[1+S,4+lm]
                          for lm=-min(S,J):min(S,J))*
-                fi*bw1[L+1];
+                fi*sqrt(bw1[L+1]);
     end
     # system 3 <-> 12
     τ3 = Vector{Float64}(4)
@@ -194,7 +198,7 @@ function COMPASS_waves(s,σ1,cosθ1,ϕ1,cosθ23,ϕ23)
         S = (S≥0 ? S : 0)
         Zϵf3[i] = sum(ClebschGordon(L,0,S,lm,J,lm)*sqrt((2*L+1)*(2*S+1))*
                             Dϵ3[J+1,M+1,1+(ϵ==P),4+lm]*D3[1+S,4+lm] for lm=-min(S,J):min(S,J))*
-                        fi*bw3[L+1];
+                        fi*sqrt(bw3[L+1]);
     end
     (Zϵf1 + Zϵf3)
     # Zϵf1

@@ -2,20 +2,23 @@ module DalitzPlotAnalysis
 export change_basis, ClebschGordon, Wignerd, WignerDϵ, Z
 
 import Base: Math.atan2
+
+import GSL: sf_coupling_3j
+
 """
     atan2(y::Complex{Float64}, x::Complex{Float64})
-The function calculates `atan` for the complex argument. The standard atan(y/x)
+The function calculates `atan` for a complex argument. The standard atan(y/x)
     is either corrected by +pi or returned.
 
     θ=2+0.1im
     println("sin: ", cos(θ))
     println("rec: ", cos(atan(tan(θ))))
     println("+pi: ", cos(π+atan(tan(θ))))
-    println("at2: ", cos(atan2(sin(θ),cos(θ))),"\n")
+    println("at2: ", cos(atan2(sin(θ),cos(θ))))
     println("sin: ", sin(θ))
     println("rec: ", sin(atan(tan(θ))))
     println("+pi: ", sin(π+atan(tan(θ))))
-    println("at2: ", sin(atan2(sin(θ),cos(θ))),"\n")
+    println("at2: ", sin(atan2(sin(θ),cos(θ))))
 """
 function atan2(y::Complex{Float64}, x::Complex{Float64})
     val = atan(y/x);
@@ -135,7 +138,6 @@ function WignerDϵ(ϵ::Bool,aj::Int64, am::Int64, an::Int64, α, β, γ)
     return (WDMp - factor * WDMm) / (am == zero(am) ? 2.0 : sqrt(2.0));
 end
 
-import GSL: sf_coupling_3j
 # Clebsches and d-function
 function ClebschGordon(j1::Rational{Int64},m1::Rational{Int64},
                        j2::Rational{Int64},m2::Rational{Int64},
