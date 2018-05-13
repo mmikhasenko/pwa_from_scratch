@@ -29,7 +29,33 @@ end
 λ(x,y,z) = x^2+y^2+z^2-2*x*y-2*y*z-2*z*x
 
 
+for tp in [:Float64, :(Complex{Float64})]
+    @eval function change_basis(s1::$(tp), cosθ23::Float64, m1sq::Float64, m2sq::Float64, m3sq::Float64, s::$(tp))
+            # calculate s3 in (23) frame
+            s3 = m1sq + m2sq +
+            # 2*(  E2 * E1 -
+                2*( (s1 + m2sq - m3sq)/(2*sqrt(s1)) * (s-m1sq-s1)/(2*sqrt(s1)) -
+                # |p2|*cos(theta23) * (-|p1|)
+                sqrt(λ(s1, m2sq, m3sq)/(4*s1))*cosθ23 * (-sqrt(λ(s, m1sq, s1)/(4*s1))) );
+            # caluclate p3 in (23) frame
+            p23bu = sqrt(λ(s1, m2sq, m3sq)/(4*s1));
+            p3_in23_E = (s1 + m3sq - m2sq)/sqrt(4*s1);
+            p3_in23_z = -p23bu*cosθ23;
+            # boost to lab frame from (23) frame
+            γ1 = (s + s1 - m1sq)/sqrt(4*s*s1);
+            β1 = sqrt(1.-1./γ1^2);
+            p3_b_z = γ1*(β1*p3_in23_E+p3_in23_z);
 
+            p3_cms = sqrt(λ(s,m3sq,s3))/sqrt(4s)
+            cosθ3 = -p3_b_z/p3_cms;
+
+            cosθ12_n = m2sq + m3sq + 2* (s3+m2sq-m1sq)/(2*sqrt(s3)) * (s-m3sq-s3)/(2*sqrt(s3)) - s1;
+            cosθ12_d = (2 * sqrt(λ(s3, m1sq, m2sq)/(4*(s3))) * sqrt(λ(s, m3sq, s3)/(4*(s3))) );
+            cosθ12 = cosθ12_d ≈ 0.0+0.0im ? 2.0*rand()-1.0*one(s1) : cosθ12_n/cosθ12_d;
+
+            return s3, cosθ3, cosθ12
+    end
+end
 # recoupling function
 # two options for the type:
 #   - either all arguments are Float64 or energy variables are complex
@@ -94,22 +120,23 @@ end
 const logfact = [sum(log(n) for n in 1:i) for i in 1:50]
 lf(i) = (i>0) ? logfact[i] :  0.0;
 
-function Wignerd(aj::Rational{Int64}, am::Rational{Int64}, an::Rational{Int64}, β)
+function Wignerd(aj, am, an, β)
     (β == zero(β)) && return (am==an) ? one(β) : zero(β)
     (β == zero(β)) && return (am==-an) ? ((aj-am)%2==1 ? -one(β) : one(β))  : zero(β)
 
-    jpm = convert(Int64,aj+am);
-    jpn = convert(Int64,aj+an);
-    jmm = convert(Int64,aj-am);
-    jmn = convert(Int64,aj-an);
-    mpn = convert(Int64,am+an);
+    jpm = aj+am;
+    jpn = aj+an;
+    jmm = aj-am;
+    jmn = aj-an;
+    mpn = am+an;
 
     # common prefactor
-    pref = (lf(jpm)+lf(jmm)+lf(jpn)+lf(jmn))/2
+    pref = (lf(jpm)+lf(jmm)+lf(jpn)+lf(jmn))/2.0
 
     #
-    s  = log(sin(β/2))
-    c  = log(cos(β/2))
+    sb2 = sin(β/2)
+    s  = log(sb2)          # log(sin(β/2))
+    c  = log(1-sb2^2)/2.0  # log(cos(β/2))
 
 
     res = zero(β)
@@ -125,10 +152,10 @@ function Wignerd(aj::Rational{Int64}, am::Rational{Int64}, an::Rational{Int64}, 
 end
 
 # Integer argument
-Wignerd(aj::Int64, am::Int64, an::Int64, β) = Wignerd(aj//1,am//1,an//1,β)
+# Wignerd(aj::Int64, am::Int64, an::Int64, β) = Wignerd(aj//1,am//1,an//1,β)
 
 # WignerD
-WignerD(aj::Int64, am::Int64, an::Int64, α, β, γ) = Wignerd(aj//1,am//1,an//1,β)*cis(-(am*α+an*γ))
+WignerD(aj, am, an, α, β, γ) = Wignerd(aj,am,an,β)*cis(-(am*α+an*γ))
 # WignerDϵ
 function WignerDϵ(ϵ::Bool,aj::Int64, am::Int64, an::Int64, α, β, γ)
     (am < zero(am)) && return 0.0im;
@@ -138,19 +165,20 @@ function WignerDϵ(ϵ::Bool,aj::Int64, am::Int64, an::Int64, α, β, γ)
     return (WDMp - factor * WDMm) / (am == zero(am) ? 2.0 : sqrt(2.0));
 end
 
-# Clebsches and d-function
-function ClebschGordon(j1::Rational{Int64},m1::Rational{Int64},
-                       j2::Rational{Int64},m2::Rational{Int64},
-                        j::Rational{Int64}, m::Rational{Int64})
-    factor = convert(Int64,j1+j2-m)%2==1 ? -1 : 1
-    factor*sqrt(2*j+1)*sf_coupling_3j(convert(Int64,2*j1),convert(Int64,2*j2), convert(Int64,2*j),
-                                      convert(Int64,2*m1),convert(Int64,2*m2),-convert(Int64,2*m))
-end
+# # Clebsches and d-function
+# function ClebschGordon(j1::Rational{Int64},m1::Rational{Int64},
+#                        j2::Rational{Int64},m2::Rational{Int64},
+#                         j::Rational{Int64}, m::Rational{Int64})
+#     factor = convert(Int64,j1+j2-m)%2==1 ? -1 : 1
+#     factor*sqrt(2*j+1)*sf_coupling_3j(convert(Int64,2*j1),convert(Int64,2*j2), convert(Int64,2*j),
+#                                       convert(Int64,2*m1),convert(Int64,2*m2),-convert(Int64,2*m))
+# end
 
-function ClebschGordon(j1::Int64,m1::Int64,
-                       j2::Int64,m2::Int64,
-                        j::Int64, m::Int64)
-    ClebschGordon(j1//1,m1//1,j2//1,m2//1,j//1,m//1)
+function ClebschGordon(two_j1::Int64,two_m1::Int64,
+                       two_j2::Int64,two_m2::Int64,
+                        two_j::Int64, two_m::Int64)
+    factor = (two_j1+two_j2-two_m)%4 == 0 ? 1.0 : -1.0;
+    factor*sqrt(two_j+1)*sf_coupling_3j(two_j1,two_j2,two_j,two_m1,two_m2,two_m)
 end
 
 # function Wignerd(j,m1,m2,cosθ)
@@ -170,7 +198,7 @@ function Z(J::Int64,M::Int64,L::Int64,l::Int64,cosθ1,ϕ1,cosθ23,ϕ23)
     rng_lm = min(l,J);
     θ1 = acos(cosθ1)
     θ23 = acos(cosθ23)
-    sum(ClebschGordon(L,0,l,lm,J,lm)*sqrt((2*L+1)*(2*l+1))*
+    sum(ClebschGordon(2*L,0,2*l,2*lm,2*J,2*lm)*sqrt((2*L+1)*(2*l+1))*
         WignerD(J,M,lm,ϕ1,θ1,0.0)*WignerD(l,lm,0,ϕ23,θ23,0.0) for lm=-rng_lm:1:rng_lm)
 end
 
@@ -179,7 +207,7 @@ function Z(J::Int64,M::Int64,ϵ::Bool,L::Int64,l::Int64,cosθ1,ϕ1,cosθ23,ϕ23)
     rng_lm = min(l,J);
     θ1 = acos(cosθ1)
     θ23 = acos(cosθ23)
-    sum(ClebschGordon(L,0,l,lm,J,lm)*sqrt((2*L+1)*(2*l+1))*
+    sum(ClebschGordon(2*L,0,2*l,2*lm,2*J,2*lm)*sqrt((2*L+1)*(2*l+1))*
         WignerDϵ(ϵ,J,M,lm,ϕ1,θ1,0.0)*WignerD(l,lm,0,ϕ23,θ23,0.0) for lm=-rng_lm:1:rng_lm)
 end
 

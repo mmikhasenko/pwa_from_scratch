@@ -1,8 +1,9 @@
 module amplitudes_compass
 # using masses: mπ, mπ2
-using DalitzPlotAnalysis: change_basis, Z, WignerDϵ, WignerD, ClebschGordon
+using DalitzPlotAnalysis: change_basis, Z, WignerDϵ, WignerD, Wignerd, ClebschGordon
 
-export λ, fρ, ff2, fρ3, fσ, ff0_980, ff0_1500, BlttWskpf, COMPASS_wave, COMPASS_waves
+export λ, fρ, ff2, fρ3, fσ, ff0_980, ff0_1500, BlttWskpf
+export COMPASS_wave, COMPASS_waves, COMPASS_wave_short
 
 """
     λ(x,y,z)
@@ -89,7 +90,7 @@ const BlttWskpf = [z->z/(1+z),
 function ff2(s::Number)
     mπ = 0.13956755;
     mπ2 = mπ^2;
-    m = 1.274;  # it was 1.2754; 
+    m = 1.274;  # it was 1.2754;
     G = 0.185;  # it was 0.1852;
     qsq_R = 1.0/4.94^2; # it was 5
     qsq = λ(s,mπ2, mπ2)/(4*s);
@@ -151,12 +152,65 @@ for i in 2:size(wavesload,1)
     @eval push!(basis, $(Symbol("wave_$(wn)")))
 end
 
+
+#############################################################################
+#############################################################################
+#############################################################################
+
+short_basis = []
+let flat(lm,σ1,cosθ23,m1sq,m2sq,m3sq,s) = 1.0+0.0im
+    push!(short_basis,flat)
+    push!(wavenames,"flat")
+end
+for i in 2:size(wavesload,1)
+    wn, name, J, P, M, ϵ, S, L = wavesload[i,:]
+    fi = (S ≥ 0) ? isobarsV[S+1] : isobarsS[1-S]
+    S = (S≥0 ? S : 0)
+    @eval function $(Symbol("wave_$(wn)"))(lm,σ1,cosθ23,m1sq,m2sq,m3sq,s)
+#         println("\nwave ",$J," ",$P," ",$M," ",$ϵ," ",$L," ",$S)
+        # if (sqrt(σ1) < (sqrt(m2sq)+sqrt(m3sq))) || ((sqrt(σ1) > (sqrt(s)-sqrt(m1sq))))
+        #     error("Check your masses. There is inconsitency, probably.")
+        # end
+        pars = change_basis(σ1,cosθ23,m1sq,m2sq,m3sq,s)
+        σ3 = pars[1]; cosθ3 = pars[2]; cosθ12 = pars[3];
+        θ23 = acos(cosθ23); θ3 = acos(cosθ3); θ21 = acos(-cosθ12);
+
+        R = 1/0.2024; #it was 5
+        bw1 = ($L == 0) ? 1.0 : BlttWskpf[$L]($λ(s,σ1,m1sq)/(4s)*R^2)
+        bw3 = ($L == 0) ? 1.0 : BlttWskpf[$L]($λ(s,σ3,m3sq)/(4s)*R^2)
+
+        # lm is fixed!
+        rng_lm = min($S,$J);
+        res_λ1 = Wignerd($(S),lm,0,θ23)*ClebschGordon(2*$(L),0,2*$(S),2*lm,2*$(J),2*lm)
+        res_λ3 = 0.0im;
+        for ν=-rng_lm:1:rng_lm
+            res_λ3 += (ν%2==0 ? 1.0 : -1.0)*
+                Wignerd($(J), lm, ν, θ3 )*
+                Wignerd($(S),  ν, 0, θ21)*ClebschGordon(2*$(L),0,2*$(S),2*ν,2*$(J),2*ν)
+        end
+        res = sqrt((2*$(L)+1)*(2*$(S)+1))*( #*WignerDϵ(($P==$ϵ),$J,$M,lm,0.0,0.0,0.0)
+            res_λ1*$(fi)(σ1)*sqrt(bw1)+
+            res_λ3*$(fi)(σ3)*sqrt(bw3)
+        )
+        return res
+    end
+    @eval push!(short_basis, $(Symbol("wave_$(wn)")))
+end
+
+
 function COMPASS_wave(i,s::Float64,σ1::Float64,
     cosθ1::Float64,ϕ1::Float64,cosθ23::Float64,ϕ23::Float64)
     (i <  1) && return 0;
     (i > 88) && return 0;
     basis[i](σ1,cosθ1,ϕ1,cosθ23,ϕ23,mπ2,mπ2,mπ2,s)
 end
+
+function COMPASS_wave_short(i,lm,s::Float64,σ1::Float64,cosθ23::Float64)
+    (i <  1) && return 0;
+    (i > 88) && return 0;
+    short_basis[i](lm,σ1,cosθ23,mπ2,mπ2,mπ2,s)
+end
+
 
 function COMPASS_waves(s,σ1,cosθ1,ϕ1,cosθ23,ϕ23)
     m1sq = mπ2; m2sq = mπ2; m3sq = mπ2;
