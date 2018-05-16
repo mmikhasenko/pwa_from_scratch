@@ -1,5 +1,6 @@
 module DalitzPlotAnalysis
-export change_basis, ClebschGordon, Wignerd, WignerDϵ, Z
+export ClebschGordon, Wignerd, WignerDϵ, Z, λ
+export change_basis, cross_basis_cosθ3, cross_basis_cosθ12, cross_basis_s3
 
 import Base: Math.atan2
 
@@ -56,6 +57,45 @@ for tp in [:Float64, :(Complex{Float64})]
             return s3, cosθ3, cosθ12
     end
 end
+
+function cross_basis_cosθ3(s1, cosθ23, m1sq, m2sq, m3sq, s)
+
+     s3 = cross_basis_s3(s1, cosθ23, m1sq, m2sq, m3sq, s);
+     s2 = s + m1sq + m2sq + m3sq - s1 - s3;
+     # check that there will not be the Domain Error.
+     λλ = λ(s, m1sq, s1)*λ(s, m3sq, s3)
+     (λλ < 0) && error("λλ < 0, check masses")
+     # directly get the angle
+     return (2s*(m1sq+m3sq-s2)+(s+m1sq-s1)*(s+m3sq-s3))/sqrt(λλ)
+end
+
+function cross_basis_s3(s1, cosθ23, m1sq, m2sq, m3sq, s)
+     # calculate s3 in (23) frame
+     return m1sq + m2sq +
+     # 2*(  E2 * E1 -
+     2*( (s1 + m2sq - m3sq)/(2*sqrt(s1)) * (s-m1sq-s1)/(2*sqrt(s1)) -
+     # |p2|*cos(theta23) * (-|p1|)
+     sqrt(λ(s1, m2sq, m3sq)/(4*s1))*cosθ23 * (-sqrt(λ(s, m1sq, s1)/(4*s1))) )
+end
+
+function cross_basis_cosθ12(s1, cosθ23, m1sq, m2sq, m3sq, s)
+     s3 = m1sq + m2sq +
+     # 2*(  E2 * E1 -
+         2*( (s1 + m2sq - m3sq)/(2*sqrt(s1)) * (s-m1sq-s1)/(2*sqrt(s1)) -
+         # |p2|*cos(theta23) * (-|p1|)
+         sqrt(λ(s1, m2sq, m3sq)/(4*s1))*cosθ23 * (-sqrt(λ(s, m1sq, s1)/(4*s1))) );
+
+     cosθ12_n = m2sq + m3sq + 2* (s3+m2sq-m1sq)/(2*sqrt(s3)) * (s-m3sq-s3)/(2*sqrt(s3)) - s1;
+     cosθ12_d = (2 * sqrt(λ(s3, m1sq, m2sq)/(4*(s3))) * sqrt(λ(s, m3sq, s3)/(4*(s3))) );
+     # cosθ12 = cosθ12_d ≈ 0.0+0.0im ? 2.0*rand()-1.0*one(s1) : cosθ12_n/cosθ12_d;
+     # cosθ12 = 2.0*rand()-1.0*one(s1)
+     (cosθ12_d ≈ zero(s)) && error("λλ == 0: check your masses")
+     cosθ12 = cosθ12_n/cosθ12_d
+
+     return cosθ12
+end
+
+
 # recoupling function
 # two options for the type:
 #   - either all arguments are Float64 or energy variables are complex

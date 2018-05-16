@@ -188,7 +188,7 @@ for i in 2:size(wavesload,1)
                 Wignerd($(J), lm, ν, θ3 )*
                 Wignerd($(S),  ν, 0, θ21)*ClebschGordon(2*$(L),0,2*$(S),2*ν,2*$(J),2*ν)
         end
-        res = sqrt((2*$(L)+1)*(2*$(S)+1))*( #*WignerDϵ(($P==$ϵ),$J,$M,lm,0.0,0.0,0.0)
+        res = sqrt((2*$(L)+1)*(2*$(S)+1)/(2*$(J)+1))*( #*WignerDϵ(($P==$ϵ),$J,$M,lm,0.0,0.0,0.0)
             res_λ1*$(fi)(σ1)*sqrt(bw1)+
             res_λ3*$(fi)(σ3)*sqrt(bw3)
         )

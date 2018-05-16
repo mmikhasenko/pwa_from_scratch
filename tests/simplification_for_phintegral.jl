@@ -11,8 +11,8 @@ end
 
 using amplitudes_compass
 #
-COMPASS_wave(2,1.5,0.3^2,1.0,0.0,0.3,0.0)
-COMPASS_wave_short(2,0,1.5,0.3^2,0.3)
+COMPASS_wave(26,1.5,0.3^2,1.0,0.0,0.3,0.0)
+COMPASS_wave_short(26,0,1.5,0.3^2,0.3)
 
 @time for i=1:100000
     COMPASS_wave(2,1.5,0.3^2,1.0,0.0,0.3,0.0)
