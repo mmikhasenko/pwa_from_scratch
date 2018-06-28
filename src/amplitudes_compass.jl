@@ -4,6 +4,7 @@ using DalitzPlotAnalysis: change_basis, Z, WignerDϵ, WignerD, Wignerd, ClebschG
 
 export λ, fρ, ff2, fρ3, fσ, ff0_980, ff0_1500, BlttWskpf
 export COMPASS_wave, COMPASS_waves, COMPASS_wave_short
+export wavenames
 
 """
     λ(x,y,z)
@@ -160,7 +161,6 @@ end
 short_basis = []
 let flat(lm,σ1,cosθ23,m1sq,m2sq,m3sq,s) = 1.0+0.0im
     push!(short_basis,flat)
-    push!(wavenames,"flat")
 end
 for i in 2:size(wavesload,1)
     wn, name, J, P, M, ϵ, S, L = wavesload[i,:]
