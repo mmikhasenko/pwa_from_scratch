@@ -217,7 +217,7 @@ end
 function ClebschGordon(two_j1::Int64,two_m1::Int64,
                        two_j2::Int64,two_m2::Int64,
                         two_j::Int64, two_m::Int64)
-    factor = (two_j1+two_j2-two_m)%4 == 0 ? 1.0 : -1.0;
+    factor = ((two_j1÷2)+(two_j2÷2-(two_m÷2) % 2 == 0 ? 1.0 : -1.0;
     factor*sqrt(two_j+1)*sf_coupling_3j(two_j1,two_j2,two_j,two_m1,two_m2,two_m)
 end
 
