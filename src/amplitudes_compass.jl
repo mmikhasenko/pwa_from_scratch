@@ -2,9 +2,12 @@ module amplitudes_compass
 # using masses: mπ, mπ2
 using DalitzPlotAnalysis: change_basis, Z, WignerDϵ, WignerD, Wignerd, ClebschGordon
 
+export swap_kin_parameters
 export λ, fρ, ff2, fρ3, fσ, ff0_980, ff0_1500, BlttWskpf
 export COMPASS_wave, COMPASS_waves, COMPASS_wave_short
 export wavenames
+
+
 
 """
     λ(x,y,z)
@@ -144,6 +147,9 @@ for i in 2:size(wavesload,1)
         σ3,τ3[1],τ3[2],τ3[3],τ3[4] = change_basis(σ1,cosθ1,ϕ1,cosθ23,ϕ23,m1sq,m2sq,m3sq,s)
         τ3[3] *= -1; τ3[4] += π
         R = 1/0.2024; #it was 5
+        (abs(τ3[1]) ≈ 1.0) && (τ3[1] = sign(τ3[1])*1.0);
+        (abs(τ3[3]) ≈ 1.0) && (τ3[3] = sign(τ3[3])*1.0);
+        (abs(τ3[1]) > 1.0 || abs(τ3[3]) > 1.0) && error("Something is wrong! (abs($(τ3[1])) > 1.0 || abs($(τ3[3]) > 1.0)")
         bw1 = ($L == 0) ? 1.0 : BlttWskpf[$L]($λ(s,σ1,m1sq)/(4s)*R^2)
         bw3 = ($L == 0) ? 1.0 : BlttWskpf[$L]($λ(s,σ3,m3sq)/(4s)*R^2)
         return Z($J,$M,($P==$ϵ),$L,$S,cosθ1,ϕ1,cosθ23,ϕ23)*$(fi)(σ1)*sqrt(bw1) +
@@ -166,7 +172,7 @@ for i in 2:size(wavesload,1)
     wn, name, J, P, M, ϵ, S, L = wavesload[i,:]
     fi = (S ≥ 0) ? isobarsV[S+1] : isobarsS[1-S]
     S = (S≥0 ? S : 0)
-    @eval function $(Symbol("wave_$(wn)"))(lm,σ1,cosθ23,m1sq,m2sq,m3sq,s)
+    @eval function $(Symbol("sort_wave_$(wn)"))(lm,σ1,cosθ23,m1sq,m2sq,m3sq,s)
 #         println("\nwave ",$J," ",$P," ",$M," ",$ϵ," ",$L," ",$S)
         # if (sqrt(σ1) < (sqrt(m2sq)+sqrt(m3sq))) || ((sqrt(σ1) > (sqrt(s)-sqrt(m1sq))))
         #     error("Check your masses. There is inconsitency, probably.")
@@ -257,6 +263,16 @@ function COMPASS_waves(s,σ1,cosθ1,ϕ1,cosθ23,ϕ23)
     (Zϵf1 + Zϵf3)
     # Zϵf1
 end
+
+function swap_kin_parameters(s,τ1...)
+    τ3 = collect(change_basis(τ1...,mπ2,mπ2,mπ2,s))
+    τ3[4] *= -1 # angle of the oposite particle
+    τ3[5] += π # angle of the oposite particle
+    (τ3[5] > π) && (τ3[5] -= 2π)
+    vcat([s],τ3)
+end
+
+# swap_kin_parameters(1.3,0.7,0.1,0.1,0.1,0.1)
 
 # COMPASS_waves(1.4,0.6,0.1,0.1,0.1,0.1) - [COMPASS_wave(i,1.4,0.6,0.1,0.1,0.1,0.1) for i in 1:88]
 # # WignerDϵ(true,1,1,1,0.1,0.1,0.0)
