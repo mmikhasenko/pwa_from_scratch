@@ -62,7 +62,27 @@ void boost(double p[], double Gamma)
 }
 
 #define MASSPI 0.13957
+#define MASSPROT 0.938
 #define MASSPISQ (MASSPI*MASSPI)
+#define MASSPROTSQ (MASSPROT*MASSPROT)
+
+#define LAMBDA(x,y,z) ((x)*(x)+(y)*(y)+(z)*(z)-2*(x)*(y)-2*(y)*(z)-2*(z)*(x))
+
+double tmin(double mXsq, double stot) {
+  return MASSPISQ+mXsq-(stot+MASSPISQ-MASSPROTSQ)*(stot+mXsq-MASSPROTSQ)/(2*stot)+
+    sqrt(LAMBDA(stot,MASSPISQ,MASSPROTSQ)*LAMBDA(stot,mXsq,MASSPROTSQ))/(2*stot);
+}
+
+double tprime(double pb[], double pX[]) {
+  double mXsq = invmasssq(pX);
+  double stot = MASSPISQ+MASSPROTSQ + 2*MASSPROTSQ*pb[3];
+  double tmin_here = tmin(mXsq, stot);
+
+  double diff[4]; for (uint i=0; i<4; i++) diff[i] = pb[i]-pX[i];
+  double t = invmasssq(diff);  // negative
+
+  return tmin_here-t;  // should be positive
+}
 
 void add(double p1[], double p2[], double sum[]) {
   for (int i = 0; i < 4; i++)
@@ -123,11 +143,11 @@ void print_ph_parameters(double p0[], double p1[], double p2[], double p3[]) {
   double ph23=phi(p2);
 
 
-  cout << s << " " << sigma1 << " " << theta1 << " " << ph1 << " " << th23 << " " << ph23 << "\n";
+  std::cout << s << " " << sigma1 << " " << theta1 << " " << ph1 << " " << th23 << " " << ph23 << "\n";
 
 }
 
-int ExtractMC(const char* file) {
+int ExtractMC(const char* file, bool full, double tprime_cut_L, double tprime_cut_H) {
   double p0[4],p1[4],p2[4],p3[4];
   TFile *fin = TFile::Open(file); if (!fin) return 1;
   TTree *tree = (TTree*)fin->Get("USR51MCout"); if (!tree) return 1;
@@ -155,7 +175,7 @@ int ExtractMC(const char* file) {
 
   for (int i=0;i<nentries;i++) {
     tree->GetEntry(i);
-    if (accepted_reco != 1) continue;
+    if (!full && accepted_reco != 1) continue;
 
     // process with event
 
@@ -164,16 +184,20 @@ int ExtractMC(const char* file) {
     p2[3] = energy(p2,MASSPISQ);
     p3[3] = energy(p3,MASSPISQ);
 
-    print_ph_parameters(p0,p1,p2,p3);
+    double pX[3]; add(p1,p2,pX); add(p3,pX,pX);
+    double tprime_here = tprime(p0, pX);
+    if (tprime_here < tprime_cut_L || tprime_here > tprime_cut_H) continue;
+
+    print_ph_parameters(p0,p2,p1,p3);
 
   }
 
   return 0;
-  
+
 }
 
 
-int ExtractRD(const char* file) {
+int ExtractRD(const char* file, double tprime_cut_L, double tprime_cut_H) {
   double p0[4],p1[4],p2[4],p3[4];
   TFile *fin = TFile::Open(file); if (!fin) return 1;
   TTree *tree = (TTree*)fin->Get("USR52mb"); if (!tree) return 1;
@@ -215,9 +239,9 @@ int ExtractRD(const char* file) {
   for (int i=0;i<nentries;i++) {
     tree->GetEntry(i);
     if (
-        !IsTriggered || 
+        !IsTriggered ||
         !IsInTarget  ||
-        !IsExclusive || 
+        !IsExclusive ||
         !IsInT  ||
         CentralProdVeto ||
         !IsInBeamTime ||
@@ -236,21 +260,49 @@ int ExtractRD(const char* file) {
     p2[3] = energy(p2,MASSPISQ);
     p3[3] = energy(p3,MASSPISQ);
 
-    print_ph_parameters(p0,p1,p2,p3);
+    double pX[3]; add(p1,p2,pX); add(p3,pX,pX);
+    double tprime_here = tprime(p0, pX);
+
+    if (tprime_here < tprime_cut_L || tprime_here > tprime_cut_H) continue;
+
+    print_ph_parameters(p0,p1,p3,p2);
 
   }
 
   return 0;
 }
 
-int Extract(const char* file, char flag = 'D') {
-  if (flag != 'D' && flag != 'M') {
+int Extract(const char* file, char flag,
+            double tprime_cut_L, double tprime_cut_H) {
+  if (flag != 'D' && flag != 'M' && flag != 'F') {
     std::cout << "There are two options for the second argument"
-            << "\n\t'D' for real data" 
-            << "\n\t'M' for monteCarlo data\n";
+              << "\n\t'D' for real data"
+              << "\n\t'M' for the accepted monteCarlo data"
+              << "\n\t'M' for the full phase space monteCarlo data"
+              << "\nYou gave --" << flag << "--\n";
     return 0;
   }
-  if (flag == 'D') ExtractRD(file);
-  if (flag == 'M') ExtractMC(file);
+  if (flag == 'D') ExtractRD(file,        tprime_cut_L, tprime_cut_H);
+  if (flag == 'M') ExtractMC(file, false, tprime_cut_L, tprime_cut_H);
+  if (flag == 'F') ExtractMC(file, true,  tprime_cut_L, tprime_cut_H);
   return 0;
+}
+
+int main(int argv, char **argc) {
+
+  if (argv < 3) {
+    std::cerr << "Arguments are needed!\n"
+             << "Example:\n\t ./Extract datafile.root 'D'\n";
+    return 1.0;
+  }
+
+  double tprime_cut_L = (argv < 5) ? 0.0 : atof(argc[3]);
+  double tprime_cut_H = (argv < 5) ? 1.0 : atof(argc[4]);
+
+  const char* file = argc[1];
+  char flag = argc[2][0];
+
+  Extract(file, flag, tprime_cut_L, tprime_cut_H);
+
+  return 0.0;
 }
