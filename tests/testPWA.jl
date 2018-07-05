@@ -141,25 +141,32 @@ BootstrapResults = let Nb = 200
         # @show minpars
         res[b,:] = minpars
         llh[b] = _LLH(minpars)
-        writedlm("BootstrapResults-$(Nb).txt", res)
+        writedlm("BootstrapResults-interm.txt", res)
+        writedlm("llh.txt", llh)
     end
-    writedlm("BootstrapResults-final.txt", res)
-    writedlm("llh.txt", llh)
     res
 end
-readdlm("BootstrapResults-1.txt")
+BootstrapResults = readdlm("BootstrapResults-200.txt")
+NewBootstrapResults = readdlm("NewBootstrapResults-200.txt")
+
+ComBootstrapResults = hcat(BootstrapResults', NewBootstrapResults')'
+writedlm("BootstrapResults.txt", ComBootstrapResults)
+
+
 get_parameter_map(ModelBlocks)[:,40]
 
 minpars
 histogram(BootstrapResults[:,40])
-scatter(BootstrapResults[:,39], BootstrapResults[:,40])
+scatter(BootstrapResults[:,10], BootstrapResults[:,40])
+scatter!(NewBootstrapResults[:,10], NewBootstrapResults[:,40])
 
 btp_error = sqrt.([cov(BootstrapResults[:,i]) for i in 1:186])
+btp_mean = [mean(BootstrapResults[:,i]) for i in 1:186]
+
 diag_error
 histogram(btp_error./diag_error)
 
-btp_mean = [mean(BootstrapResults[:,i]) for i in 1:186]
-
+scatter(minpars,btp_mean)
 
 let tog = [[minpars[i],diag_error[i]] for i in 1:length(minpars)]
     stog = sort(tog, by=x->abs(x[1]), rev=true)
@@ -169,7 +176,7 @@ end
 let tog = [[btp_mean[i],btp_error[i]] for i in 1:length(minpars)]
     stog = sort(tog, by=x->abs(x[1]), rev=true)
     hcat_stog = hcat(stog...)
-    plot!(abs.(hcat_stog[1,:]), yerr = hcat_stog[2,:], ylim=(0,1))
+    plot(abs.(hcat_stog[1,:]), yerr = hcat_stog[2,:], ylim=(0,1))
 end
 
 test_t = ran)d(186)
