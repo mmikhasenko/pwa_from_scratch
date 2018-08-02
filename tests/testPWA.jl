@@ -1,5 +1,5 @@
 using Plots
-theme(:juno)
+theme(:default)
 
 push!(LOAD_PATH,"src")
 
@@ -22,12 +22,10 @@ using FittingPWALikelihood
 let sum_mat_n = [sum_mat[i,j]/sqrt(sum_mat[i,i]*sum_mat[j,j]) for i=1:88, j=1:88];
     heatmap(real(sum_mat_n))
 end
-# waves = readdlm(pwd()*"/src/wavelist_formated.txt");
-waves = readdlm(joinpath("src","wavelist_formated.txt"));
 
-const noϵ = [i==1 for i=1:size(waves[:,6],1)]
-const posϵ = [ϵ=="+" for ϵ in waves[:,6]]
-const negϵ = [ϵ=="-" for ϵ in waves[:,6]]
+const noϵ = [i==1 for i=1:size(wavesfile[:,6],1)]
+const posϵ = [ϵ=="+" for ϵ in wavesfile[:,6]]
+const negϵ = [ϵ=="-" for ϵ in wavesfile[:,6]]
 
 const ModelBlocks = [noϵ, posϵ, negϵ, negϵ]
 
@@ -55,6 +53,7 @@ let tog = [[minpars[i],diag_error[i]] for i in 1:length(minpars)]
     hcat_stog = hcat(stog...)
     plot(abs.(hcat_stog[1,:]), yerr = hcat_stog[2,:], ylim=(0,1))
 end
+
 
 #####################################################################################
 #####################################################################################
@@ -127,6 +126,23 @@ diag(SDM)
 
 minpars_rd = SDM_to_pars(SDM_RD/size(PsiDT,1), BmatFU, ModelBlocks)
 minpars_cv = SDM_to_pars(SDM   /size(PsiDT,1), BmatFU, ModelBlocks)
+
+
+arg(z) = atan2(imag(z), real(z))
+SDM_with_sign = diag(SDM).*cis.([arg(SDM[2,i]) for i in 1:size(SDM,1)]);
+
+
+gr()
+let v = plot(size=(500,400))
+    cutoff = 0.2*max(abs.(SDM_with_sign)...)
+    for (i,v) in enumerate(SDM_with_sign)
+        plot!([0, real(v)], [0, imag(v)], lab="", l=(1))
+        (abs(v) > cutoff) && annotate!(
+            [(0.75real(v), 0.75imag(v), text(wavenames[i][3:end],10))])
+    end
+    plot!()
+end
+savefig("/tmp/arrow_intensities.pdf")
 
 #####################################################################################
 #####################################################################################

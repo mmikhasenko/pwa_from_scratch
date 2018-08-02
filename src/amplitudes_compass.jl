@@ -5,7 +5,7 @@ using DalitzPlotAnalysis: change_basis, Z, WignerDϵ, WignerD, Wignerd, ClebschG
 export swap_kin_parameters
 export λ, fρ, ff2, fρ3, fσ, ff0_980, ff0_1500, BlttWskpf
 export COMPASS_wave, COMPASS_waves, COMPASS_wave_short
-export wavenames
+export wavenames, wavesfile
 
 
 
@@ -124,7 +124,7 @@ end
 
 # constract COMPASS basis
 # pwd()
-wavesload = readdlm(pwd()*"/src/wavelist_formated.txt")
+wavesfile = readdlm(pwd()*"/src/wavelist_formated.txt")
 isobarsV = [fσ,fρ,ff2,fρ3]
 isobarsS = [fσ,ff0_980,ff0_1500]
 
@@ -134,8 +134,8 @@ let flat(σ1,cosθ1,ϕ1,cosθ23,ϕ23,m1sq,m2sq,m3sq,s) = 1.0+0.0im
     push!(basis,flat)
     push!(wavenames,"flat")
 end
-for i in 2:size(wavesload,1)
-    wn, name, J, P, M, ϵ, S, L = wavesload[i,:]
+for i in 2:size(wavesfile,1)
+    wn, name, J, P, M, ϵ, S, L = wavesfile[i,:]
     fi = (S ≥ 0) ? isobarsV[S+1] : isobarsS[1-S]
     S = (S≥0 ? S : 0)
     @eval function $(Symbol("wave_$(wn)"))(σ1,cosθ1,ϕ1,cosθ23,ϕ23,m1sq,m2sq,m3sq,s)
@@ -168,8 +168,8 @@ short_basis = []
 let flat(lm,σ1,cosθ23,m1sq,m2sq,m3sq,s) = 1.0+0.0im
     push!(short_basis,flat)
 end
-for i in 2:size(wavesload,1)
-    wn, name, J, P, M, ϵ, S, L = wavesload[i,:]
+for i in 2:size(wavesfile,1)
+    wn, name, J, P, M, ϵ, S, L = wavesfile[i,:]
     fi = (S ≥ 0) ? isobarsV[S+1] : isobarsS[1-S]
     S = (S≥0 ? S : 0)
     @eval function $(Symbol("sort_wave_$(wn)"))(lm,σ1,cosθ23,m1sq,m2sq,m3sq,s)
@@ -224,14 +224,14 @@ function COMPASS_waves(s,σ1,cosθ1,ϕ1,cosθ23,ϕ23)
     const Dϵ1 = [(M > J || λ > J) ? 0.0im : WignerDϵ(ϵ==1,J,M,λ,ϕ1,acos(cosθ1),0) for J=0:6, M=0:2, ϵ=0:1, λ=-3:3]
     const D1  = [(λ > S) ? 0.0im : WignerD(S,λ,0,ϕ23,acos(cosθ23),0) for S=0:6, λ=-3:3]
     # Z functions
-    const Zϵf1 = Vector{Complex{Float64}}(size(wavesload,1))
+    const Zϵf1 = Vector{Complex{Float64}}(size(wavesfile,1))
     Zϵf1[1] = 0.5+0.0im;
     const iV = [f(σ1) for f in isobarsV]
     const iS = [f(σ1) for f in isobarsS]
     const R = 1/0.2024; #it was 5
     const bw1 = [(L == 0) ? 1.0 : BlttWskpf[L](λ(s,σ1,m1sq)/(4s)*R^2) for L=0:6];
-    for i in 2:size(wavesload,1)
-        wn, name, J, P, M, ϵ, S, L = wavesload[i,:]
+    for i in 2:size(wavesfile,1)
+        wn, name, J, P, M, ϵ, S, L = wavesfile[i,:]
         fi = (S ≥ 0) ? iV[S+1] : iS[1-S]
         S = (S≥0 ? S : 0)
         Zϵf1[i] = sum(ClebschGordon(L,0,S,lm,J,lm)*sqrt((2*L+1)*(2*S+1))*
@@ -247,13 +247,13 @@ function COMPASS_waves(s,σ1,cosθ1,ϕ1,cosθ23,ϕ23)
     const Dϵ3 = [(M > J || λ > J) ? 0.0im : WignerDϵ(ϵ==1,J,M,λ,τ3[2],acos(τ3[1]),0) for J=0:6, M=0:2, ϵ=0:1, λ=-3:3]
     const D3  = [(λ > S) ? 0.0im : WignerD(S,λ,0,τ3[4],acos(τ3[3]),0) for S=0:6, λ=-3:3]
     # Z functions
-    const Zϵf3 = Vector{Complex{Float64}}(size(wavesload,1))
+    const Zϵf3 = Vector{Complex{Float64}}(size(wavesfile,1))
     Zϵf3[1] = 0.5+0.0im;
     iV .= [f(σ3) for f in isobarsV]
     iS .= [f(σ3) for f in isobarsS]
     const bw3 = [(L == 0) ? 1.0 : BlttWskpf[L](λ(s,σ3,m3sq)/(4s)*R^2) for L=0:6];
-    for i in 2:size(wavesload,1)
-        wn, name, J, P, M, ϵ, S, L = wavesload[i,:]
+    for i in 2:size(wavesfile,1)
+        wn, name, J, P, M, ϵ, S, L = wavesfile[i,:]
         fi = (S ≥ 0) ? iV[S+1] : iS[1-S]
         S = (S≥0 ? S : 0)
         Zϵf3[i] = sum(ClebschGordon(L,0,S,lm,J,lm)*sqrt((2*L+1)*(2*S+1))*
