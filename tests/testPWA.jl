@@ -6,6 +6,7 @@ push!(LOAD_PATH,"src")
 using DalitzPlotAnalysis
 using amplitudes_compass
 using PWAHelper
+using SDMHelper
 using FittingPWALikelihood
 
 @time precalculate_compass_basis(joinpath("data","2300_2320_t1_rd.txt"), "rd.jld")
@@ -75,7 +76,7 @@ const DT1 = readdlm(joinpath("data","2300_2320_t1_rd.txt"));
 histogram2d(DT1[:,2], DT3[:,2], bins=linspace(0,6,100))
 
 stephist(sqrt.(vcat(MC1[:,2],MC3[:,2])), weights=vcat(weights,weights)/size(MC1,1)*size(DT1,1),
-    bins=linspace(0.3,2.2,100),lab="weighted MC")
+    bins=linspace(0.3,2.2,100),lab="weighted MC", size=(800,500), xlab="M3pi (GeV)")
 let v = stephist!(sqrt.(vcat(DT1[:,2],DT3[:,2])), bins=linspace(0.3,2.2,100),lab="data")
     yarr = v.subplots[1][2][:y]
     xarr = v.subplots[1][2][:x]
@@ -84,6 +85,8 @@ let v = stephist!(sqrt.(vcat(DT1[:,2],DT3[:,2])), bins=linspace(0.3,2.2,100),lab
     y2 = [yarr[2i] for i in 1:(div(length(yarr),2)-1)];
     plot!(x2, y2, err=sqrt.(y2), lab="", marker = (0, stroke(0.5, :gray)), l=nothing)
 end
+savefig(joinpath("plots","data_with_errors.png"))
+savefig(joinpath("plots","data_with_errors.pdf"))
 
 #####################################################################################
 #####################################################################################
@@ -97,10 +100,13 @@ SDM = size(PsiDT,1)*pars_to_SDM(minpars, BmatFU, ModelBlocks)
 
 minpars./SDM_to_pars(SDM/size(PsiDT,1), BmatFU, ModelBlocks)
 
-SDM_RD = readdlm("/tmp/sdm91.re")+1im*readdlm("/tmp/sdm91.im")
+SDM_RD = readdlm(joinpath("SDMs","0.100000-0.112853","sdm91.re")) +
+    1im*readdlm(joinpath("SDMs","0.100000-0.112853","sdm91.im"))
 
-plot(real.(diag(SDM_RD)))
-plot!(real.(diag(SDM)))
+plot(hcat(real.(diag(SDM_RD)), real.(diag(SDM))), lab=["F.H.-D.R." "M.M."],
+    xlab="# wave", title = "Diagonal of the SDM", size=(800,500))
+savefig(joinpath("plots","sdm_results.png"))
+savefig(joinpath("plots","sdm_results.pdf"))
 
 let rd=real.(diag(SDM_RD)), wn = wavenames
     sort([(wn[i],rd[i]) for i in 1:length(rd)], by=x->x[2],rev=true)
@@ -109,16 +115,15 @@ let
     plot(real.(SDM_RD[2,:]), frame=:origin)
     plot!(real.(SDM[2,:]))
 end
-let
-    plot(real.(diag(SDM_RD)), frame=:origin)
-    plot!(real.(diag(SDM)))
-end
+plot(hcat(real.(SDM_RD[2,:]), real.(SDM[2,:])), lab=["F.H.-D.R." "M.M."],
+    xlab="# wave", title = "Real part of the second row of SDM", size=(800,500))
+savefig(joinpath("plots","sdm2_results.png"))
+savefig(joinpath("plots","sdm2_results.pdf"))
 
 sum(diag(SDM))
 sum(diag(SDM_RD))
 
 diag(SDM)
-
 
 minpars_rd = SDM_to_pars(SDM_RD/size(PsiDT,1), BmatFU, ModelBlocks)
 minpars_cv = SDM_to_pars(SDM   /size(PsiDT,1), BmatFU, ModelBlocks)
@@ -146,42 +151,31 @@ BootstrapResults = let Nb = 200
     end
     res
 end
-BootstrapResults = readdlm("BootstrapResults-200.txt")
-NewBootstrapResults = readdlm("NewBootstrapResults-200.txt")
-
-ComBootstrapResults = hcat(BootstrapResults', NewBootstrapResults')'
-writedlm("BootstrapResults.txt", ComBootstrapResults)
-
-
-get_parameter_map(ModelBlocks)[:,40]
+BootstrapResults = readdlm("BootstrapResults.txt")
 
 minpars
-histogram(BootstrapResults[:,40])
+histogram(BootstrapResults[:,1])
 scatter(BootstrapResults[:,10], BootstrapResults[:,40])
-scatter!(NewBootstrapResults[:,10], NewBootstrapResults[:,40])
 
 btp_error = sqrt.([cov(BootstrapResults[:,i]) for i in 1:186])
 btp_mean = [mean(BootstrapResults[:,i]) for i in 1:186]
 
-diag_error
-histogram(btp_error./diag_error)
-
-scatter(minpars,btp_mean)
+plot(hcat(minpars,btp_mean), lab=["main fit" "bootstrap mean"], xlab = "# parameter")
 
 let tog = [[minpars[i],diag_error[i]] for i in 1:length(minpars)]
     stog = sort(tog, by=x->abs(x[1]), rev=true)
     hcat_stog = hcat(stog...)
-    plot(abs.(hcat_stog[1,:]), yerr = hcat_stog[2,:], ylim=(0,1))
+    plot(abs.(hcat_stog[1,:]), yerr = hcat_stog[2,:], ylim=(0,1),
+    lab="", title="PWA results and the errors Hessian", xlab="# parameter", size=(800,500))
 end
+savefig(joinpath("plots","parameters_with_hessian_errors.png"))
+savefig(joinpath("plots","parameters_with_hessian_errors.pdf"))
+
 let tog = [[btp_mean[i],btp_error[i]] for i in 1:length(minpars)]
     stog = sort(tog, by=x->abs(x[1]), rev=true)
     hcat_stog = hcat(stog...)
-    plot(abs.(hcat_stog[1,:]), yerr = hcat_stog[2,:], ylim=(0,1))
+    plot(abs.(hcat_stog[1,:]), yerr = hcat_stog[2,:], ylim=(0,1),
+    lab="", title="PWA results and the errors Bootstrap", xlab="# parameter", size=(800,500))
 end
-
-test_t = ran)d(186)
-@time @show LLH(test_t)
-
-minpars0 = vcat(readdlm("minpars.txt")...);
-@time minpars = minimize(LLH, LLH_and_GRAD!; verbose=1, starting_pars=minpars0)
-writedlm("minpars.txt", minpars)
+savefig(joinpath("plots","parameters_with_bootstrap_errors.png"))
+savefig(joinpath("plots","parameters_with_bootstrap_errors.pdf"))
