@@ -9,11 +9,11 @@ using PWAHelper
 using SDMHelper
 using FittingPWALikelihood
 
-@time precalculate_compass_basis(joinpath("data","2300_2320_t1_rd.txt"), "rd.jld")
-@time precalculate_compass_basis(joinpath("data","2300_2320_t1_mc.txt"), "mc.jld")
-@time precalculate_compass_basis(joinpath("data","2300_2320_t1_fu.txt"), "fu.jld")
+@time precalculate_compass_basis(joinpath("data","2320_2340_t1_rd.txt"), "data/rd.jld")
+@time precalculate_compass_basis(joinpath("data","2320_2340_t1_mc.txt"), "data/mc.jld")
+@time precalculate_compass_basis(joinpath("data","2320_2340_t1_fu.txt"), "data/fu.jld")
 
-@time const PsiMC = read_precalc_basis("mc.jld");
+@time const PsiMC = read_precalc_basis("data/mc.jld");
 
 @time const sum_mat = [sum(PsiMC[e,i]'*PsiMC[e,j] for e in 1:size(PsiMC,1))
     for i=1:Nwaves, j=1:Nwaves] /size(PsiMC,1);
@@ -30,7 +30,7 @@ const negϵ = [ϵ=="-" for ϵ in wavesfile[:,6]]
 const ModelBlocks = [noϵ, posϵ]
 const Npar = size(get_parameter_map(ModelBlocks),2)
 
-const PsiDT = read_precalc_basis("rd.jld");
+const PsiDT = read_precalc_basis("data/rd.jld");
 
 LLH, GRAD, LLH_and_GRAD!, HES = createLLHandGRAD(PsiDT, sum_mat, ModelBlocks);
 
@@ -40,7 +40,7 @@ test_t = rand(Npar);
 
 minpars0 = vcat(readdlm("minpars.txt")...)[1:length(test_t)];
 @time minpars = minimize(LLH, LLH_and_GRAD!; verbose=1, starting_pars=minpars0)
-writedlm("minpars.txt", minpars)
+writedlm("minpars_r1.txt", minpars)
 
 #####################################################################################
 #####################################################################################
@@ -66,12 +66,12 @@ end
         [cohsq(extnd(PsiMC[i,:],Tmap).*mpars,pblocks) for i in 1:size(PsiMC,1)];
 end;
 
-const MC1 = readdlm(joinpath("data","2300_2320_t1_mc.txt"));
+const MC1 = readdlm(joinpath("data","2320_2340_t1_mc.txt"));
 @time const MC3 = hcat([swap_kin_parameters(MC1[e,:]...) for e in 1:size(MC1,1)]...)';
 
 histogram(sqrt.(vcat(MC1[:,2],MC3[:,2])), weights=vcat(weights,weights), bins=(linspace(0.3,2.2,100)))
 
-const DT1 = readdlm(joinpath("data","2300_2320_t1_rd.txt"));
+const DT1 = readdlm(joinpath("data","2320_2340_t1_rd.txt"));
 @time const DT3 = hcat([swap_kin_parameters(DT1[e,:]...) for e in 1:size(DT1,1)]...)';
 
 histogram2d(DT1[:,2], DT3[:,2], bins=linspace(0,6,100))
@@ -92,7 +92,7 @@ savefig(joinpath("plots","data_with_errors_pr1.pdf"))
 #####################################################################################
 #####################################################################################
 
-@time const PsiFU = read_precalc_basis("fu.jld");
+@time const PsiFU = read_precalc_basis("data/fu.jld");
 
 @time const BmatFU = [sum(PsiFU[e,i]'*PsiFU[e,j] for e in 1:size(PsiFU,1))
     for i=1:Nwaves, j=1:Nwaves] /size(PsiMC,1);
@@ -101,13 +101,18 @@ SDM = size(PsiDT,1)*pars_to_SDM(minpars, BmatFU, ModelBlocks)
 
 minpars./SDM_to_pars(SDM/size(PsiDT,1), BmatFU, ModelBlocks)
 
-SDM_RD = readdlm(joinpath("/tmp/SDM.2300.re")) +
-    1im*readdlm(joinpath("/tmp/SDM.2300.im"))
+# SDM_RD = readdlm(joinpath("/tmp/SDM.2300.re")) +
+#      1im*readdlm(joinpath("/tmp/SDM.2300.im"))
 
-plot(hcat(real.(diag(SDM_RD)), real.(diag(SDM))), lab=["F+P+N+N" "F+P"],
+# plot(hcat(real.(diag(SDM_RD)), real.(diag(SDM))), lab=["F+P+N+N" "F+P"],
+#     xlab="# wave", title = "Diagonal of the SDM", size=(800,500))
+# savefig(joinpath("plots","without_neg_rank.png"))
+# savefig(joinpath("plots","without_neg_rank.pdf"))
+
+plot(real.(diag(SDM)), lab="Flat(1)+Pos(80)",
     xlab="# wave", title = "Diagonal of the SDM", size=(800,500))
 savefig(joinpath("plots","without_neg_rank.png"))
-savefig(joinpath("plots","without_neg_rank.pdf"))
+writedlm("sdm_r1_2320_2340_t1.txt", real.(diag(SDM)))
 
 let rd=real.(diag(SDM_RD)), wn = wavenames
     sort([(wn[i],rd[i]) for i in 1:length(rd)], by=x->x[2],rev=true)
