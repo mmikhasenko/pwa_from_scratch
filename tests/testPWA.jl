@@ -16,10 +16,10 @@ using FittingPWALikelihood
 @time const PsiMC = read_precalc_basis("mc.jld");
 
 @time const sum_mat = [sum(PsiMC[e,i]'*PsiMC[e,j] for e in 1:size(PsiMC,1))
-    for i=1:88, j=1:88] /size(PsiMC,1);
+    for i=1:Nwaves, j=1:Nwaves] /size(PsiMC,1);
 # 10.593515 seconds (101.00 k allocations: 4.752 MiB)
 
-let sum_mat_n = [sum_mat[i,j]/sqrt(sum_mat[i,i]*sum_mat[j,j]) for i=1:88, j=1:88];
+let sum_mat_n = [sum_mat[i,j]/sqrt(sum_mat[i,i]*sum_mat[j,j]) for i=1:Nwaves, j=1:Nwaves];
     heatmap(real(sum_mat_n))
 end
 
@@ -28,12 +28,13 @@ const posϵ = [ϵ=="+" for ϵ in wavesfile[:,6]]
 const negϵ = [ϵ=="-" for ϵ in wavesfile[:,6]]
 
 const ModelBlocks = [noϵ, posϵ, negϵ, negϵ]
+const Npar = size(get_parameter_map(ModelBlocks),2)
 
 const PsiDT = read_precalc_basis("rd.jld");
 
 LLH, GRAD, LLH_and_GRAD!, HES = createLLHandGRAD(PsiDT, sum_mat, ModelBlocks);
 
-test_t = rand(186)
+test_t = rand(Npar)
 @time @show LLH(test_t)
 
 minpars0 = vcat(readdlm("minpars.txt")...);
@@ -93,7 +94,7 @@ savefig(joinpath("plots","data_with_errors.pdf"))
 @time const PsiFU = read_precalc_basis("fu.jld");
 
 @time const BmatFU = [sum(PsiFU[e,i]'*PsiFU[e,j] for e in 1:size(PsiFU,1))
-    for i=1:88, j=1:88] /size(PsiMC,1);
+    for i=1:Nwaves, j=1:Nwaves] /size(PsiMC,1);
 
 SDM = size(PsiDT,1)*pars_to_SDM(minpars, BmatFU, ModelBlocks)
 
@@ -143,6 +144,8 @@ let v = plot(size=(500,400))
     plot!()
 end
 savefig("/tmp/arrow_intensities.pdf")
+writedlm("/tmp/SDM.2300.re",real(SDM))
+writedlm("/tmp/SDM.2300.im",imag(SDM))
 
 #####################################################################################
 #####################################################################################
@@ -173,8 +176,8 @@ minpars
 histogram(BootstrapResults[:,1])
 scatter(BootstrapResults[:,10], BootstrapResults[:,40])
 
-btp_error = sqrt.([cov(BootstrapResults[:,i]) for i in 1:186])
-btp_mean = [mean(BootstrapResults[:,i]) for i in 1:186]
+btp_error = sqrt.([cov(BootstrapResults[:,i]) for i in 1:Npar])
+btp_mean = [mean(BootstrapResults[:,i]) for i in 1:Npar]
 
 plot(hcat(minpars,btp_mean), lab=["main fit" "bootstrap mean"], xlab = "# parameter")
 
