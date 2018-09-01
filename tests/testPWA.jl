@@ -15,12 +15,12 @@ using FittingPWALikelihood
 
 @time const PsiMC = read_precalc_basis("mc.jld");
 
-@time const sum_mat = [sum(PsiMC[e,i]'*PsiMC[e,j] for e in 1:size(PsiMC,1))
+@time const BmatMC = [sum(PsiMC[e,i]'*PsiMC[e,j] for e in 1:size(PsiMC,1))
     for i=1:Nwaves, j=1:Nwaves] /size(PsiMC,1);
 # 10.593515 seconds (101.00 k allocations: 4.752 MiB)
 
-let sum_mat_n = [sum_mat[i,j]/sqrt(sum_mat[i,i]*sum_mat[j,j]) for i=1:Nwaves, j=1:Nwaves];
-    heatmap(real(sum_mat_n))
+let BmatMC_n = [BmatMC[i,j]/sqrt(BmatMC[i,i]*BmatMC[j,j]) for i=1:Nwaves, j=1:Nwaves];
+    heatmap(real(BmatMC_n))
 end
 
 const noϵ = [i==1 for i=1:size(wavesfile[:,6],1)]
@@ -32,29 +32,34 @@ const Npar = size(get_parameter_map(ModelBlocks),2)
 
 const PsiDT = read_precalc_basis("rd.jld");
 
-LLH, GRAD, LLH_and_GRAD!, HES = createLLHandGRAD(PsiDT, sum_mat, ModelBlocks);
+LLH, GRAD, LLH_and_GRAD!, HES = createLLHandGRAD(PsiDT, BmatMC, ModelBlocks);
 
 test_t = rand(Npar)
 @time @show LLH(test_t)
 
-minpars0 = vcat(readdlm("minpars.txt")...);
-@time minpars = minimize(LLH, LLH_and_GRAD!; verbose=1, starting_pars=minpars0)
-writedlm("minpars.txt", minpars)
+minpars0 = vcat(readdlm("minpars_compass.txt")...);
+# start nice algorithm which goes directly to the minimum
+@time minpars = minimize(LLH, LLH_and_GRAD!;
+    algorithm = :LD_LBFGS, verbose=1, starting_pars=minpars0)
+# start more precise algorithm
+@time minpars = minimize(LLH, LLH_and_GRAD!;
+    algorithm = :LD_SLSQP, verbose=1, starting_pars=minpars)
+writedlm("minpars_compass.txt", minpars)
 
 #####################################################################################
 #####################################################################################
 
 @time hes_anal = HES(minpars)
 inv_hes = inv(hes_anal)
+diag(inv_hes)
 
 diag_error = sqrt.(diag(inv_hes))
 
 let tog = [[minpars[i],diag_error[i]] for i in 1:length(minpars)]
     stog = sort(tog, by=x->abs(x[1]), rev=true)
     hcat_stog = hcat(stog...)
-    plot(abs.(hcat_stog[1,:]), yerr = hcat_stog[2,:], ylim=(0,1))
+    plot(abs.(hcat_stog[1,:]), yerr = hcat_stog[2,:], ylim=(0,.1))
 end
-
 
 #####################################################################################
 #####################################################################################
@@ -100,8 +105,10 @@ SDM = size(PsiDT,1)*pars_to_SDM(minpars, BmatFU, ModelBlocks)
 
 minpars./SDM_to_pars(SDM/size(PsiDT,1), BmatFU, ModelBlocks)
 
-SDM_RD = readdlm(joinpath("SDMs","0.100000-0.112853","sdm91.re")) +
-    1im*readdlm(joinpath("SDMs","0.100000-0.112853","sdm91.im"))
+SDM_RD = let path = "/localhome/mikhasenko/cernbox/tmp/pwa_from_scratch_data"
+    readdlm(joinpath(path,"0.100000-0.112853","sdm91.re")) +
+    1im*readdlm(joinpath(path,"0.100000-0.112853","sdm91.im"))
+end
 
 plot(hcat(real.(diag(SDM_RD)), real.(diag(SDM))), lab=["F.H.-D.R." "M.M."],
     xlab="# wave", title = "Diagonal of the SDM", size=(800,500))
@@ -160,7 +167,7 @@ BootstrapResults = let Nb = 200
         Nd = size(PsiDT,1)
         const _PsiDT = hcat([PsiDT[rand(1:Nd),:] for i in 1:Nd]...).'
         @show size(_PsiDT)
-        _LLH, _GRAD, _LLH_and_GRAD!, _HES = createLLHandGRAD(_PsiDT, sum_mat, ModelBlocks);
+        _LLH, _GRAD, _LLH_and_GRAD!, _HES = createLLHandGRAD(_PsiDT, BmatMC, ModelBlocks);
         @time minpars = minimize(_LLH, _LLH_and_GRAD!; verbose=1, starting_pars=minpars0)
         # @show minpars
         res[b,:] = minpars
