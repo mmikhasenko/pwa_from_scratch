@@ -53,6 +53,8 @@ writedlm("minpars_compass.txt", minpars)
 inv_hes = inv(hes_anal)
 diag(inv_hes)
 
+writedlm("invhes_compass.txt", inv_hes)
+
 diag_error = sqrt.(diag(inv_hes))
 
 let tog = [[minpars[i],diag_error[i]] for i in 1:length(minpars)]
@@ -60,6 +62,7 @@ let tog = [[minpars[i],diag_error[i]] for i in 1:length(minpars)]
     hcat_stog = hcat(stog...)
     plot(abs.(hcat_stog[1,:]), yerr = hcat_stog[2,:], ylim=(0,.1))
 end
+savefig("plots/official_comass_fit_parameters.pdf")
 
 #####################################################################################
 #####################################################################################
