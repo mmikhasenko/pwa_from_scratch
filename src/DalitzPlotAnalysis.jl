@@ -27,7 +27,15 @@ function atan2(y::Complex{Float64}, x::Complex{Float64})
     return (real(cosval)*real(x) > 0) ? val : val+π;
 end
 
+"""
+    λ(x,y,z)
+
+Kaellen triangle function defined by
+```
 λ(x,y,z) = x^2+y^2+z^2-2*x*y-2*y*z-2*z*x
+```
+"""
+λ(x::Number,y::Number,z::Number) = x^2+y^2+z^2-2*x*y-2*y*z-2*z*x
 
 
 for tp in [:Float64, :(Complex{Float64})]
@@ -197,11 +205,11 @@ end
 # WignerD
 WignerD(aj, am, an, α, β, γ) = Wignerd(aj,am,an,β)*cis(-(am*α+an*γ))
 # WignerDϵ
-function WignerDϵ(ϵ::Bool,aj::Int64, am::Int64, an::Int64, α, β, γ)
+function WignerDϵ(ϵP::Bool,aj::Int64, am::Int64, an::Int64, α, β, γ)
     (am < zero(am)) && return 0.0im;
     WDMp = WignerD(aj,am,an,α,β,γ)
     WDMm = (am == 0) ? WDMp : WignerD(aj,-am,an,α, β, γ);
-    factor = (2ϵ-1) * (2((aj-am)%2==0)-1);
+    factor = (2ϵP-1) * (2((aj-am)%2==0)-1);
     return (WDMp - factor * WDMm) / (am == zero(am) ? 2.0 : sqrt(2.0));
 end
 
@@ -238,17 +246,19 @@ function Z(J::Int64,M::Int64,L::Int64,l::Int64,cosθ1,ϕ1,cosθ23,ϕ23)
     rng_lm = min(l,J);
     θ1 = acos(cosθ1)
     θ23 = acos(cosθ23)
-    sum(ClebschGordon(2*L,0,2*l,2*lm,2*J,2*lm)*sqrt((2*L+1)*(2*l+1))*
+    res = sum(ClebschGordon(2*L,0,2*l,2*lm,2*J,2*lm)*sqrt((2*L+1)*(2*l+1))*
         WignerD(J,M,lm,ϕ1,θ1,0.0)*WignerD(l,lm,0,ϕ23,θ23,0.0) for lm=-rng_lm:1:rng_lm)
+    return conj(res)
 end
 
 
-function Z(J::Int64,M::Int64,ϵ::Bool,L::Int64,l::Int64,cosθ1,ϕ1,cosθ23,ϕ23)
+function Z(J::Int64,M::Int64,ϵP::Bool,L::Int64,l::Int64,cosθ1,ϕ1,cosθ23,ϕ23)
     rng_lm = min(l,J);
     θ1 = acos(cosθ1)
     θ23 = acos(cosθ23)
-    sum(ClebschGordon(2*L,0,2*l,2*lm,2*J,2*lm)*sqrt((2*L+1)*(2*l+1))*
-        WignerDϵ(ϵ,J,M,lm,ϕ1,θ1,0.0)*WignerD(l,lm,0,ϕ23,θ23,0.0) for lm=-rng_lm:1:rng_lm)
+    res = sum(ClebschGordon(2*L,0,2*l,2*lm,2*J,2*lm)*sqrt((2*L+1)*(2*l+1))*
+        WignerDϵ(ϵP,J,M,lm,ϕ1,θ1,0.0)*WignerD(l,lm,0,ϕ23,θ23,0.0) for lm=-rng_lm:1:rng_lm)
+    return conj(res)
 end
 
 # Z(1,0,false,0,1,0.1,0.0,0.1,0.0)
