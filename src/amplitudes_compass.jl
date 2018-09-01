@@ -1,27 +1,26 @@
 module amplitudes_compass
 # using masses: mπ, mπ2
-using DalitzPlotAnalysis: change_basis, Z, WignerDϵ, WignerD, Wignerd, ClebschGordon
+using QuadGK
+using DalitzPlotAnalysis: λ, change_basis, Z, WignerDϵ, WignerD, Wignerd, ClebschGordon
 
 export swap_kin_parameters
-export λ, fρ, ff2, fρ3, fσ, ff0_980, ff0_1500, BlttWskpf
-export COMPASS_wave, COMPASS_waves, COMPASS_wave_short
+export fρ, ff2, fρ3, fσ, ff0_980, ff0_1500, BlttWskpf
+export COMPASS_wave
+#, COMPASS_waves, COMPASS_wave_short
 export wavenames, wavesfile, Nwaves
-
-"""
-    λ(x,y,z)
-
-Kaellen triangle function defined by
-```
-λ(x,y,z) = x^2+y^2+z^2-2*x*y-2*y*z-2*z*x
-```
-"""
-λ(x::Number,y::Number,z::Number) = x^2+y^2+z^2-2*x*y-2*y*z-2*z*x
 
 const mπ = 0.13956755; const mπ2 = mπ^2;
 const mK = 0.493677; const mK2 = mK^2;
 const mK0 = 0.497614; const mK02 = mK0^2;
 
 export mπ, mπ2
+
+const BlttWskpf = [z->z/(1+z),
+                   z->z^2/(9+3z+z^2),
+                   z->z*z*z/(z*z*z+6.*z*z+45.*z+225.),
+                   z->z*z*z*z/(z*z*z*z+10.*z*z*z+135.*z*z+1575.*z+11025.),
+                   z->z*z*z*z*z/(z*z*z*z*z+15.*z*z*z*z+315.*z*z*z+6300.*z*z+99225.*z+893025.),
+                   z->z*z*z*z*z*z/(z*z*z*z*z*z+21.*z*z*z*z*z+630.*z*z*z*z+18900.*z*z*z+496125.*z*z+9823275.*z+108056025.)];
 
 ################### SIGMA #################
 # AMP Table 1, M solution: f_2^2
@@ -34,7 +33,7 @@ const _a = [0.1131, 0.0]
 const _c = [0.0337, -0.3185, -0.0942, -0.5927, 0.0]
 const _sP = [-0.0074, 0.9828]
 
-function fσ(s::Number)
+function _fσ(s::Number)
     (s < 4mπ2) && return 0.0;
 
     rho00 = sqrt(λ(s, mπ2, mπ2))/s;
@@ -52,7 +51,7 @@ function fσ(s::Number)
 end
 
 
-function ff0_980(s::Number)
+function _ff0_980(s::Number)
     m = 0.965;
     gPi = 0.165;
     rK = 4.21;
@@ -61,13 +60,13 @@ function ff0_980(s::Number)
     return 1./(m*m-s-2.0im*(sqrt(qsq)*gPi+sqrt(convert(Complex{Float64},qsqK))*gPi*rK)/sqrt(s));
 end
 
-function ff0_1500(s::Number)
+function _ff0_1500(s::Number)
     m = 1.507;
     G = 0.109;
     return m*G/(m*m-s-1im*m*G);
 end
 
-function fρ(s::Number)
+function _fρ(s::Number)
     const mρ = 0.7685; const Γρ = 0.1507;
     # break up momentum
     p  = sqrt(λ(mπ2,mπ2,s)/(4*s));
@@ -82,14 +81,7 @@ function fρ(s::Number)
     return sqrt(ff)/(mρ^2-s -1.0im*mΓ) #
 end
 
-const BlttWskpf = [z->z/(1+z),
-                   z->z^2/(9+3z+z^2),
-                   z->z*z*z/(z*z*z+6.*z*z+45.*z+225.),
-                   z->z*z*z*z/(z*z*z*z+10.*z*z*z+135.*z*z+1575.*z+11025.),
-                   z->z*z*z*z*z/(z*z*z*z*z+15.*z*z*z*z+315.*z*z*z+6300.*z*z+99225.*z+893025.),
-                   z->z*z*z*z*z*z/(z*z*z*z*z*z+21.*z*z*z*z*z+630.*z*z*z*z+18900.*z*z*z+496125.*z*z+9823275.*z+108056025.)];
-
-function ff2(s::Number)
+function _ff2(s::Number)
     mπ = 0.13956755;
     mπ2 = mπ^2;
     m = 1.274;  # it was 1.2754;
@@ -102,13 +94,19 @@ function ff2(s::Number)
 end
 
 #
-function fρ3(s::Number)
+function _fρ3(s::Number)
   mπ = 0.13956755; mπ2 = mπ^2;
   m = 1.690;
   G = 0.190;
   qsq_R = 1/4.94^2;
   qsq = λ(s,mπ2, mπ2)/(4*s);
   return sqrt(m*G*sqrt(s))/(m*m-s-1im*m*G) * sqrt(BlttWskpf[3](qsq/qsq_R));
+end
+
+for name in ["fρ3", "ff2", "fρ", "ff0_1500", "fσ", "ff0_980"]
+    @eval const $(Symbol("norm_"*name)) = sqrt(quadgk(
+        x->abs2($(Symbol("_"*name))(x))*sqrt((1-4mπ2/x)),4mπ2, Inf)[1]/(16*π^2))
+    @eval $(Symbol(name))(σ) = $(Symbol("_"*name))(σ)/$(Symbol("norm_"*name))
 end
 
 function ZϵDD(J::Int64,M::Int64,ϵ::Bool,L::Int64,l::Int64, Dϵ, D)
@@ -142,17 +140,19 @@ for i in 2:Nwaves
         # if (sqrt(σ1) < (sqrt(m2sq)+sqrt(m3sq))) || ((sqrt(σ1) > (sqrt(s)-sqrt(m1sq))))
         #     error("Check your masses. There is inconsitency, probably.")
         # end
+        τ1 = [cosθ1,ϕ1,cosθ23,ϕ23]
         τ3 = Vector{Float64}(4)
-        σ3,τ3[1],τ3[2],τ3[3],τ3[4] = change_basis(σ1,cosθ1,ϕ1,cosθ23,ϕ23,m1sq,m2sq,m3sq,s)
-        τ3[3] *= -1; τ3[4] += π
+        σ3,τ3[1],τ3[2],τ3[3],τ3[4] = change_basis(σ1,τ1...,m1sq,m2sq,m3sq,s)
+        # τ1[3] *= -1; τ1[4] += π
+        τ1[3] *= -1; τ1[4] += π
         R = 1/0.2024; #it was 5
         (abs(τ3[1]) ≈ 1.0) && (τ3[1] = sign(τ3[1])*1.0);
         (abs(τ3[3]) ≈ 1.0) && (τ3[3] = sign(τ3[3])*1.0);
         (abs(τ3[1]) > 1.0 || abs(τ3[3]) > 1.0) && error("Something is wrong! (abs($(τ3[1])) > 1.0 || abs($(τ3[3]) > 1.0)")
         bw1 = ($L == 0) ? 1.0 : BlttWskpf[$L]($λ(s,σ1,m1sq)/(4s)*R^2)
         bw3 = ($L == 0) ? 1.0 : BlttWskpf[$L]($λ(s,σ3,m3sq)/(4s)*R^2)
-        return Z($J,$M,($P==$ϵ),$L,$S,cosθ1,ϕ1,cosθ23,ϕ23)*$(fi)(σ1)*sqrt(bw1) +
-               Z($J,$M,($P==$ϵ),$L,$S,τ3...)              *$(fi)(σ3)*sqrt(bw3)
+        return Z($J,$M,($P==$ϵ),$L,$S,τ1...)*$(fi)(σ1)*sqrt(bw1) +
+               Z($J,$M,($P==$ϵ),$L,$S,τ3...)*$(fi)(σ3)*sqrt(bw3)
     end
     push!(wavenames,name)
     @eval push!(basis, $(Symbol("wave_$(wn)")))
@@ -163,44 +163,44 @@ end
 #############################################################################
 #############################################################################
 
-short_basis = []
-let flat(lm,σ1,cosθ23,m1sq,m2sq,m3sq,s) = 1.0+0.0im
-    push!(short_basis,flat)
-end
-for i in 2:Nwaves
-    wn, name, J, P, M, ϵ, S, L = wavesfile[i,:]
-    fi = (S ≥ 0) ? isobarsV[S+1] : isobarsS[1-S]
-    S = (S≥0 ? S : 0)
-    @eval function $(Symbol("sort_wave_$(wn)"))(lm,σ1,cosθ23,m1sq,m2sq,m3sq,s)
-#         println("\nwave ",$J," ",$P," ",$M," ",$ϵ," ",$L," ",$S)
-        # if (sqrt(σ1) < (sqrt(m2sq)+sqrt(m3sq))) || ((sqrt(σ1) > (sqrt(s)-sqrt(m1sq))))
-        #     error("Check your masses. There is inconsitency, probably.")
-        # end
-        pars = change_basis(σ1,cosθ23,m1sq,m2sq,m3sq,s)
-        σ3 = pars[1]; cosθ3 = pars[2]; cosθ12 = pars[3];
-        θ23 = acos(cosθ23); θ3 = acos(cosθ3); θ21 = acos(-cosθ12);
-
-        R = 1/0.2024; #it was 5
-        bw1 = ($L == 0) ? 1.0 : BlttWskpf[$L]($λ(s,σ1,m1sq)/(4s)*R^2)
-        bw3 = ($L == 0) ? 1.0 : BlttWskpf[$L]($λ(s,σ3,m3sq)/(4s)*R^2)
-
-        # lm is fixed!
-        rng_lm = min($S,$J);
-        res_λ1 = Wignerd($(S),lm,0,θ23)*ClebschGordon(2*$(L),0,2*$(S),2*lm,2*$(J),2*lm)
-        res_λ3 = 0.0im;
-        for ν=-rng_lm:1:rng_lm
-            res_λ3 += (ν%2==0 ? 1.0 : -1.0)*
-                Wignerd($(J), lm, ν, θ3 )*
-                Wignerd($(S),  ν, 0, θ21)*ClebschGordon(2*$(L),0,2*$(S),2*ν,2*$(J),2*ν)
-        end
-        res = sqrt((2*$(L)+1)*(2*$(S)+1)/(2*$(J)+1))*( #*WignerDϵ(($P==$ϵ),$J,$M,lm,0.0,0.0,0.0)
-            res_λ1*$(fi)(σ1)*sqrt(bw1)+
-            res_λ3*$(fi)(σ3)*sqrt(bw3)
-        )
-        return res
-    end
-    @eval push!(short_basis, $(Symbol("wave_$(wn)")))
-end
+# short_basis = []
+# let flat(lm,σ1,cosθ23,m1sq,m2sq,m3sq,s) = 1.0+0.0im
+#     push!(short_basis,flat)
+# end
+# for i in 2:Nwaves
+#     wn, name, J, P, M, ϵ, S, L = wavesfile[i,:]
+#     fi = (S ≥ 0) ? isobarsV[S+1] : isobarsS[1-S]
+#     S = (S≥0 ? S : 0)
+#     @eval function $(Symbol("sort_wave_$(wn)"))(lm,σ1,cosθ23,m1sq,m2sq,m3sq,s)
+# #         println("\nwave ",$J," ",$P," ",$M," ",$ϵ," ",$L," ",$S)
+#         # if (sqrt(σ1) < (sqrt(m2sq)+sqrt(m3sq))) || ((sqrt(σ1) > (sqrt(s)-sqrt(m1sq))))
+#         #     error("Check your masses. There is inconsitency, probably.")
+#         # end
+#         pars = change_basis(σ1,cosθ23,m1sq,m2sq,m3sq,s)
+#         σ3 = pars[1]; cosθ3 = pars[2]; cosθ12 = pars[3];
+#         θ23 = acos(cosθ23); θ3 = acos(cosθ3); θ21 = acos(-cosθ12);
+#
+#         R = 1/0.2024; #it was 5
+#         bw1 = ($L == 0) ? 1.0 : BlttWskpf[$L]($λ(s,σ1,m1sq)/(4s)*R^2)
+#         bw3 = ($L == 0) ? 1.0 : BlttWskpf[$L]($λ(s,σ3,m3sq)/(4s)*R^2)
+#
+#         # lm is fixed!
+#         rng_lm = min($S,$J);
+#         res_λ1 = Wignerd($(S),lm,0,θ23)*ClebschGordon(2*$(L),0,2*$(S),2*lm,2*$(J),2*lm)
+#         res_λ3 = 0.0im;
+#         for ν=-rng_lm:1:rng_lm
+#             res_λ3 += (ν%2==0 ? 1.0 : -1.0)*
+#                 Wignerd($(J), lm, ν, θ3 )*
+#                 Wignerd($(S),  ν, 0, θ21)*ClebschGordon(2*$(L),0,2*$(S),2*ν,2*$(J),2*ν)
+#         end
+#         res = sqrt((2*$(L)+1)*(2*$(S)+1)/(2*$(J)+1))*( #*WignerDϵ(($P==$ϵ),$J,$M,lm,0.0,0.0,0.0)
+#             res_λ1*$(fi)(σ1)*sqrt(bw1)+
+#             res_λ3*$(fi)(σ3)*sqrt(bw3)
+#         )
+#         return res
+#     end
+#     @eval push!(short_basis, $(Symbol("wave_$(wn)")))
+# end
 
 
 function COMPASS_wave(i,s::Float64,σ1::Float64,
@@ -210,58 +210,58 @@ function COMPASS_wave(i,s::Float64,σ1::Float64,
     basis[i](σ1,cosθ1,ϕ1,cosθ23,ϕ23,mπ2,mπ2,mπ2,s)
 end
 
-function COMPASS_wave_short(i,lm,s::Float64,σ1::Float64,cosθ23::Float64)
-    (i <  1) && return 0;
-    (i > Nwaves) && return 0;
-    short_basis[i](lm,σ1,cosθ23,mπ2,mπ2,mπ2,s)
-end
+# function COMPASS_wave_short(i,lm,s::Float64,σ1::Float64,cosθ23::Float64)
+#     (i <  1) && return 0;
+#     (i > Nwaves) && return 0;
+#     short_basis[i](lm,σ1,cosθ23,mπ2,mπ2,mπ2,s)
+# end
 
 
-function COMPASS_waves(s,σ1,cosθ1,ϕ1,cosθ23,ϕ23)
-    m1sq = mπ2; m2sq = mπ2; m3sq = mπ2;
-    # system 1 <-> 23
-    const Dϵ1 = [(M > J || λ > J) ? 0.0im : WignerDϵ(ϵ==1,J,M,λ,ϕ1,acos(cosθ1),0) for J=0:6, M=0:2, ϵ=0:1, λ=-3:3]
-    const D1  = [(λ > S) ? 0.0im : WignerD(S,λ,0,ϕ23,acos(cosθ23),0) for S=0:6, λ=-3:3]
-    # Z functions
-    const Zϵf1 = Vector{Complex{Float64}}(Nwaves)
-    Zϵf1[1] = 0.5+0.0im;
-    const iV = [f(σ1) for f in isobarsV]
-    const iS = [f(σ1) for f in isobarsS]
-    const R = 1/0.2024; #it was 5
-    const bw1 = [(L == 0) ? 1.0 : BlttWskpf[L](λ(s,σ1,m1sq)/(4s)*R^2) for L=0:6];
-    for i in 2:Nwaves
-        wn, name, J, P, M, ϵ, S, L = wavesfile[i,:]
-        fi = (S ≥ 0) ? iV[S+1] : iS[1-S]
-        S = (S≥0 ? S : 0)
-        Zϵf1[i] = sum(ClebschGordon(L,0,S,lm,J,lm)*sqrt((2*L+1)*(2*S+1))*
-                        Dϵ1[J+1,M+1,1+(ϵ==P),4+lm]*D1[1+S,4+lm]
-                         for lm=-min(S,J):min(S,J))*
-                fi*sqrt(bw1[L+1]);
-    end
-    # system 3 <-> 12
-    τ3 = Vector{Float64}(4)
-    σ3,τ3[1],τ3[2],τ3[3],τ3[4] = change_basis(σ1,cosθ1,ϕ1,cosθ23,ϕ23,m1sq,m2sq,m3sq,s)
-    τ3[3] *= -1; τ3[4] += π
-    # functions
-    const Dϵ3 = [(M > J || λ > J) ? 0.0im : WignerDϵ(ϵ==1,J,M,λ,τ3[2],acos(τ3[1]),0) for J=0:6, M=0:2, ϵ=0:1, λ=-3:3]
-    const D3  = [(λ > S) ? 0.0im : WignerD(S,λ,0,τ3[4],acos(τ3[3]),0) for S=0:6, λ=-3:3]
-    # Z functions
-    const Zϵf3 = Vector{Complex{Float64}}(Nwaves)
-    Zϵf3[1] = 0.5+0.0im;
-    iV .= [f(σ3) for f in isobarsV]
-    iS .= [f(σ3) for f in isobarsS]
-    const bw3 = [(L == 0) ? 1.0 : BlttWskpf[L](λ(s,σ3,m3sq)/(4s)*R^2) for L=0:6];
-    for i in 2:Nwaves
-        wn, name, J, P, M, ϵ, S, L = wavesfile[i,:]
-        fi = (S ≥ 0) ? iV[S+1] : iS[1-S]
-        S = (S≥0 ? S : 0)
-        Zϵf3[i] = sum(ClebschGordon(L,0,S,lm,J,lm)*sqrt((2*L+1)*(2*S+1))*
-                            Dϵ3[J+1,M+1,1+(ϵ==P),4+lm]*D3[1+S,4+lm] for lm=-min(S,J):min(S,J))*
-                        fi*sqrt(bw3[L+1]);
-    end
-    (Zϵf1 + Zϵf3)
-    # Zϵf1
-end
+# function COMPASS_waves(s,σ1,cosθ1,ϕ1,cosθ23,ϕ23)
+#     m1sq = mπ2; m2sq = mπ2; m3sq = mπ2;
+#     # system 1 <-> 23
+#     const Dϵ1 = [(M > J || λ > J) ? 0.0im : WignerDϵ(ϵ==1,J,M,λ,ϕ1,acos(cosθ1),0) for J=0:6, M=0:2, ϵ=0:1, λ=-3:3]
+#     const D1  = [(λ > S) ? 0.0im : WignerD(S,λ,0,ϕ23,acos(cosθ23),0) for S=0:6, λ=-3:3]
+#     # Z functions
+#     const Zϵf1 = Vector{Complex{Float64}}(Nwaves)
+#     Zϵf1[1] = 0.5+0.0im;
+#     const iV = [f(σ1) for f in isobarsV]
+#     const iS = [f(σ1) for f in isobarsS]
+#     const R = 1/0.2024; #it was 5
+#     const bw1 = [(L == 0) ? 1.0 : BlttWskpf[L](λ(s,σ1,m1sq)/(4s)*R^2) for L=0:6];
+#     for i in 2:Nwaves
+#         wn, name, J, P, M, ϵ, S, L = wavesfile[i,:]
+#         fi = (S ≥ 0) ? iV[S+1] : iS[1-S]
+#         S = (S≥0 ? S : 0)
+#         Zϵf1[i] = sum(ClebschGordon(L,0,S,lm,J,lm)*sqrt((2*L+1)*(2*S+1))*
+#                         Dϵ1[J+1,M+1,1+(ϵ==P),4+lm]*D1[1+S,4+lm]
+#                          for lm=-min(S,J):min(S,J))*
+#                 fi*sqrt(bw1[L+1]);
+#     end
+#     # system 3 <-> 12
+#     τ3 = Vector{Float64}(4)
+#     σ3,τ3[1],τ3[2],τ3[3],τ3[4] = change_basis(σ1,cosθ1,ϕ1,cosθ23,ϕ23,m1sq,m2sq,m3sq,s)
+#     τ3[3] *= -1; τ3[4] += π
+#     # functions
+#     const Dϵ3 = [(M > J || λ > J) ? 0.0im : WignerDϵ(ϵ==1,J,M,λ,τ3[2],acos(τ3[1]),0) for J=0:6, M=0:2, ϵ=0:1, λ=-3:3]
+#     const D3  = [(λ > S) ? 0.0im : WignerD(S,λ,0,τ3[4],acos(τ3[3]),0) for S=0:6, λ=-3:3]
+#     # Z functions
+#     const Zϵf3 = Vector{Complex{Float64}}(Nwaves)
+#     Zϵf3[1] = 0.5+0.0im;
+#     iV .= [f(σ3) for f in isobarsV]
+#     iS .= [f(σ3) for f in isobarsS]
+#     const bw3 = [(L == 0) ? 1.0 : BlttWskpf[L](λ(s,σ3,m3sq)/(4s)*R^2) for L=0:6];
+#     for i in 2:Nwaves
+#         wn, name, J, P, M, ϵ, S, L = wavesfile[i,:]
+#         fi = (S ≥ 0) ? iV[S+1] : iS[1-S]
+#         S = (S≥0 ? S : 0)
+#         Zϵf3[i] = sum(ClebschGordon(L,0,S,lm,J,lm)*sqrt((2*L+1)*(2*S+1))*
+#                             Dϵ3[J+1,M+1,1+(ϵ==P),4+lm]*D3[1+S,4+lm] for lm=-min(S,J):min(S,J))*
+#                         fi*sqrt(bw3[L+1]);
+#     end
+#     (Zϵf1 + Zϵf3)
+#     # Zϵf1
+# end
 
 function swap_kin_parameters(s,τ1...)
     τ3 = collect(change_basis(τ1...,mπ2,mπ2,mπ2,s))
