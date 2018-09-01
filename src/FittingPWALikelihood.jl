@@ -89,7 +89,8 @@ end
 
 
 function minimize(minusLogLikelihood, andDerive!;
-                  verbose::Int=0,
+                  algorithm::Symbol = :LD_LBFGS,
+                  verbose::Int=0, precisn::Float64 = 1e-6,
                   starting_pars::Vector{Float64} = error("I need the starting parameters!"))
     function to_minimize(x::Vector, grad::Vector)
         if length(grad) > 0
@@ -102,8 +103,8 @@ function minimize(minusLogLikelihood, andDerive!;
         verbose==3 && @show v,grad
         return v;
     end
-    opt = Opt(:LD_LBFGS, length(starting_pars)) # try LD_LBFGS || LD_MMA || LD_SLSQP
-    xtol_rel!(opt,1e-4)
+    opt = Opt(algorithm, length(starting_pars)) # try LD_LBFGS || LD_MMA || LD_SLSQP
+    xtol_rel!(opt,precisn)
     maxeval!(opt,500000)
 
     min_objective!(opt, to_minimize)
