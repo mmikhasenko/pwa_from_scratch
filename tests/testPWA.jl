@@ -57,12 +57,15 @@ writedlm("invhes_compass.txt", inv_hes)
 
 diag_error = sqrt.(diag(inv_hes))
 
-let tog = [[minpars[i],diag_error[i]] for i in 1:length(minpars)]
+@show wavenames[82]
+plot(abs.(minpars[1:end-26]), yerr = diag_error[1:end-13], ylim=(0,.1))
+
+let tog = [[minpars[i],diag_error[i]] for i in 1:(length(minpars)-26)]
     stog = sort(tog, by=x->abs(x[1]), rev=true)
     hcat_stog = hcat(stog...)
     plot(abs.(hcat_stog[1,:]), yerr = hcat_stog[2,:], ylim=(0,.1))
 end
-savefig("plots/official_comass_fit_parameters.pdf")
+savefig("plots/official_comass_fit_parameters_nonegref.pdf")
 
 #####################################################################################
 #####################################################################################
