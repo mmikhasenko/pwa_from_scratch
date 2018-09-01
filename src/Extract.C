@@ -102,7 +102,8 @@ void apply_to_all(std::function<void(double*)> f, std::vector<double*> arr) {
 
 void print_ph_parameters(double p0[], double p1[], double p2[], double p3[]) {
 
-  double p123[4], p23 [4];
+  double p123[4], p23[4];
+  double pt[] = {0,0,0,MASSPROT};
 
   add(p2,p3,p23);
   add(p1,p23,p123);
@@ -110,21 +111,18 @@ void print_ph_parameters(double p0[], double p1[], double p2[], double p3[]) {
   double sigma1 = invmasssq(p23);
   double th123 = acos(costheta(p123));
   double ph123 = phi(p123);
-  // rotz(p1,-ph123); roty(p1,-th123);
-
-  apply_to_all([&](double *p)->void{rotz(p,-ph123); roty(p,-th123);}, {p1,p2,p3,p0});
+  apply_to_all([&](double *p)->void{rotz(p,-ph123); roty(p,-th123);}, {p1,p2,p3,p0,pt});
 
   // boost to CMS
   double gamma1=p123[3]/(sqrt(invmasssq(p123)));
   apply_to_all([&](double *p)->void{boost(p,-gamma1);},
-               {p1,p2,p3,p0});
+               {p1,p2,p3,p0,pt});
+
   // rot to align beam along z
   double thb = acos(costheta(p0));
   double phb = phi(p0);
-  apply_to_all([&](double *p)->void{rotz(p,-phb); roty(p,-thb);},
-               {p1,p2,p3,p0});
-
-
+  apply_to_all([&](double *p)->void{rotz(p,-phb); roty(p,-thb); rotz(p,M_PI);},
+               {p1,p2,p3,p0,pt});
 
   // measure Omega1
   add(p2,p3,p23);
@@ -265,7 +263,7 @@ int ExtractRD(const char* file, double tprime_cut_L, double tprime_cut_H) {
 
     if (tprime_here < tprime_cut_L || tprime_here > tprime_cut_H) continue;
 
-    print_ph_parameters(p0,p1,p3,p2);
+    print_ph_parameters(p0,p2,p3,p1);
 
   }
 
