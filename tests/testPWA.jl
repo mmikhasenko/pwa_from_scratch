@@ -9,11 +9,30 @@ using PWAHelper
 using SDMHelper
 using FittingPWALikelihood
 
-@time precalculate_compass_basis(joinpath("data","2300_2320_t1_rd.txt"), "rd.jld")
-@time precalculate_compass_basis(joinpath("data","2300_2320_t1_mc.txt"), "mc.jld")
-@time precalculate_compass_basis(joinpath("data","2300_2320_t1_fu.txt"), "fu.jld")
+mass_bin_name = "2300_2320"
 
-@time const PsiMC = read_precalc_basis("mc.jld");
+for app in ["rd", "mc", "fu"]
+    @eval $(Symbol("kinvar_"*app)) = joinpath("data","$(mass_bin_name)_t1_"*$app*".txt")
+    @eval $(Symbol("basisfunc_"*app)) = joinpath("data","$(mass_bin_name)_t1_"*$app*".txt")
+end
+
+##### Converting data data #####
+
+iffile("data/$(mass_bin_name)_rd.root") || error("Cannot find the file")
+iffile("data/$(mass_bin_name)_mc.root") || error("Cannot find the file")
+@time let tmin = "0.1", tmax = "0.112853"
+    run(pipeline(`src/Extract data/$(mass_bin_name)_rd.root D $(tmin) $(tmax)`, stdout=kinvar_rd))
+    run(pipeline(`src/Extract data/$(mass_bin_name)_mc.root M $(tmin) $(tmax)`, stdout=kinvar_mc))
+    run(pipeline(`src/Extract data/$(mass_bin_name)_mc.root F $(tmin) $(tmax)`, stdout=kinvar_fu))
+end
+
+################################
+
+@time precalculate_compass_basis(kinvar_rd, basisfunc_rd)
+@time precalculate_compass_basis(kinvar_mc, basisfunc_mc)
+@time precalculate_compass_basis(kinvar_fu, basisfunc_fu)
+
+@time const PsiMC = read_precalc_basis(basisfunc_mc);
 
 @time const BmatMC = [sum(PsiMC[e,i]'*PsiMC[e,j] for e in 1:size(PsiMC,1))
     for i=1:Nwaves, j=1:Nwaves] /size(PsiMC,1);
@@ -30,7 +49,7 @@ const negϵ = [ϵ=="-" for ϵ in wavesfile[:,6]]
 const ModelBlocks = [noϵ, posϵ, negϵ, negϵ]
 const Npar = size(get_parameter_map(ModelBlocks),2)
 
-const PsiDT = read_precalc_basis("rd.jld");
+const PsiDT = read_precalc_basis(basisfunc_rd);
 
 LLH, GRAD, LLH_and_GRAD!, HES = createLLHandGRAD(PsiDT, BmatMC, ModelBlocks);
 
@@ -65,7 +84,7 @@ let tog = [[minpars[i],diag_error[i]] for i in 1:(length(minpars)-26)]
     hcat_stog = hcat(stog...)
     plot(abs.(hcat_stog[1,:]), yerr = hcat_stog[2,:], ylim=(0,.1))
 end
-savefig("plots/official_comass_fit_parameters_nonegref.pdf")
+savefig(joinpath("plots","official_comass_fit_parameters_nonegref.pdf"))
 
 #####################################################################################
 #####################################################################################
@@ -76,12 +95,12 @@ savefig("plots/official_comass_fit_parameters_nonegref.pdf")
         [cohsq(extnd(PsiMC[i,:],Tmap).*mpars,pblocks) for i in 1:size(PsiMC,1)];
 end;
 
-const MC1 = readdlm(joinpath("data","2300_2320_t1_mc.txt"));
+const MC1 = readdlm(kinvar_mc);
 @time const MC3 = hcat([swap_kin_parameters(MC1[e,:]...) for e in 1:size(MC1,1)]...)';
 
 histogram(sqrt.(vcat(MC1[:,2],MC3[:,2])), weights=vcat(weights,weights), bins=(linspace(0.3,2.2,100)))
 
-const DT1 = readdlm(joinpath("data","2300_2320_t1_rd.txt"));
+const DT1 = readdlm(kinvar_rd);
 @time const DT3 = hcat([swap_kin_parameters(DT1[e,:]...) for e in 1:size(DT1,1)]...)';
 
 histogram2d(DT1[:,2], DT3[:,2], bins=linspace(0,6,100))
@@ -102,7 +121,7 @@ savefig(joinpath("plots","data_with_errors.pdf"))
 #####################################################################################
 #####################################################################################
 
-@time const PsiFU = read_precalc_basis("fu.jld");
+@time const PsiFU = read_precalc_basis(basisfunc_fu);
 
 @time const BmatFU = [sum(PsiFU[e,i]'*PsiFU[e,j] for e in 1:size(PsiFU,1))
     for i=1:Nwaves, j=1:Nwaves] /size(PsiMC,1);
@@ -162,31 +181,47 @@ writedlm("/tmp/SDM.2300.im",imag(SDM))
 
 #####################################################################################
 #####################################################################################
-
-const testPsiDT = hcat([PsiDT[rand(1:size(PsiDT,1)),:] for i in 1:size(PsiDT,1)]...).'
-
-BootstrapResults = let Nb = 200
-    minpars0 = vcat(readdlm("minpars.txt")...);
+BootstrapResults = let Nb = 50
+    # path to save
+    path_to_tmp_res = joinpath("data","bootstrap_tmp")
+    # path to save
+    minpars0 = vcat(readdlm("minpars_compass.txt")...);
     res = Matrix{Float64}(Nb,length(minpars0))
     llh = Vector{Float64}(Nb)
-    @progress for b in 1:Nb
+    @progress for b in 27:Nb
         Nd = size(PsiDT,1)
         const _PsiDT = hcat([PsiDT[rand(1:Nd),:] for i in 1:Nd]...).'
-        @show size(_PsiDT)
+        # @show size(_PsiDT)
         _LLH, _GRAD, _LLH_and_GRAD!, _HES = createLLHandGRAD(_PsiDT, BmatMC, ModelBlocks);
-        @time minpars = minimize(_LLH, _LLH_and_GRAD!; verbose=1, starting_pars=minpars0)
+        @time _minpars = minimize(_LLH, _LLH_and_GRAD!;
+            verbose=1, starting_pars=minpars0) #,algorithm=:LD_MMA
         # @show minpars
-        res[b,:] = minpars
-        llh[b] = _LLH(minpars)
-        writedlm("BootstrapResults-interm.txt", res)
-        writedlm("llh.txt", llh)
+        res[b,:] = _minpars
+        llh[b] = _LLH(_minpars)
+        writedlm(joinpath(path_to_tmp_res,"BootstrapResults-$(b).txt"), res[b,:])
+        writedlm(joinpath(path_to_tmp_res,"llh-$(b).txt"), llh[b])
     end
     res
 end
-BootstrapResults = readdlm("BootstrapResults.txt")
+# BootstrapResults = let Nb = 50, path_to_tmp_res = joinpath("data","bootstrap_tmp")
+#     res = Matrix{Float64}(Nb,Npar)
+#     for b in 1:Nb
+#         res[b,:] = readdlm(joinpath(path_to_tmp_res,"BootstrapResults-$(b).txt"))
+#     end
+#     res
+# end
+# writedlm(joinpath("data","bootstrap_tmp","bootstrap_r3.txt"), BootstrapResults)
+# llh = let Nb = 100, path_to_tmp_res = joinpath("data","bootstrap_tmp")
+#     res = Vector{Float64}(Nb)
+#     for b in 1:Nb
+#         res[b] = readdlm(joinpath(path_to_tmp_res,"llh-$(b).txt"))[1]
+#     end
+#     res
+# end
 
 minpars
-histogram(BootstrapResults[:,1])
+histogram(BootstrapResults[:,1], bins=10)
+vline!([minpars[1]])
 scatter(BootstrapResults[:,10], BootstrapResults[:,40])
 
 btp_error = sqrt.([cov(BootstrapResults[:,i]) for i in 1:Npar])

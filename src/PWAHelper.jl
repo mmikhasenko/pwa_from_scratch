@@ -2,14 +2,30 @@ module PWAHelper
 
 using amplitudes_compass
 
-using JLD
+# using JLD
 using Juno
 
 export precalculate_compass_basis, read_precalc_basis
+# export precalculate_compass_basis_txt, read_precalc_basis_txt
 export get_parameter_map, make_pblock_masks
 export extnd, shrnk, cohsq, cohts
 export contract_to_intensity
 
+
+# function precalculate_compass_basis(fin,fout)
+#     mm = readdlm(fin); Nd = size(mm,1)
+#     m2 = fill(0.0im, Nd, 88)
+#     @progress for e in 1:Nd
+#         for i in 1:88
+#             m2[e,i] = COMPASS_wave(i,mm[e,:]...);
+#         end
+#     end
+#     save(fout,"real",real(m2),"imag",imag(m2))
+# end
+# function read_precalc_basis(fname)
+#     ld = load(fname)
+#     ld["real"]+1im*ld["imag"]
+# end
 
 function precalculate_compass_basis(fin,fout)
     mm = readdlm(fin); Nd = size(mm,1)
@@ -19,11 +35,12 @@ function precalculate_compass_basis(fin,fout)
             m2[e,i] = COMPASS_wave(i,mm[e,:]...);
         end
     end
-    save(fout,"real",real(m2),"imag",imag(m2))
+    writedlm(fout,[real(m2) imag(m2)])
 end
 function read_precalc_basis(fname)
-    ld = load(fname)
-    ld["real"]+1im*ld["imag"]
+    ld = readdlm(fname)
+    Nh = div(size(ld,2),2)
+    ld[:,1:Nh]+1im*ld[:,(Nh+1):end]
 end
 
 
