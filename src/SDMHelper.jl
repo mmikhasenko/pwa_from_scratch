@@ -3,6 +3,7 @@ module SDMHelper
 using PWAHelper
 
 export SDM_to_pars, pars_to_SDM
+export write_SDM, read_SDM
 
 function pars_to_SDM(pars, Bmat, block_masks)
     Tmap = get_parameter_map(block_masks)
@@ -37,5 +38,26 @@ function SDM_to_pars(SDM, Bmat, block_masks)
     end
     return fpars
 end
+
+function write_SDM(sdm, fout)
+    writedlm(fout, [real(sdm) imag(sdm)])
+end
+
+function read_SDM(fin)
+    ld = readdlm(fin)
+    Nh = div(size(ld,2),2)
+    ld[:,1:Nh] + 1im .* ld[:,(Nh+1):end]
+end
+
+
+function constract_values(ind, SDMs, SDM, SDM_RD, SDM_RD_err)
+    bts = [real(s[ind,ind]) for s in SDMs]
+    v_main = real(SDM[ind,ind])
+    v_off = real(SDM_RD[ind,ind])
+    v_off_err = real(SDM_RD_err[ind,ind])
+    v_qnt = quantile(bts,[0.16,0.84]) # sigma to every direction
+    [ind v_main v_off v_off_err v_qnt...]
+end
+
 
 end

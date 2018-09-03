@@ -134,6 +134,10 @@ SDM_RD = let path = "/localhome/mikhasenko/cernbox/tmp/pwa_from_scratch_data"
     readdlm(joinpath(path,"0.100000-0.112853","sdm91.re")) +
     1im*readdlm(joinpath(path,"0.100000-0.112853","sdm91.im"))
 end
+SDM_RD_err = let path = "/localhome/mikhasenko/cernbox/tmp/pwa_from_scratch_data"
+    readdlm(joinpath(path,"0.100000-0.112853","sdm91-err.re")) +
+    1im*readdlm(joinpath(path,"0.100000-0.112853","sdm91-err.im"))
+end
 
 plot(hcat(real.(diag(SDM_RD)), real.(diag(SDM))), lab=["F.H.-D.R." "M.M."],
     xlab="# wave", title = "Diagonal of the SDM", size=(800,500))
@@ -181,36 +185,44 @@ writedlm("/tmp/SDM.2300.im",imag(SDM))
 
 #####################################################################################
 #####################################################################################
-BootstrapResults = let Nb = 50
+BootstrapResults = let Nb = 500
     # path to save
     path_to_tmp_res = joinpath("data","bootstrap_tmp")
     # path to save
     minpars0 = vcat(readdlm("minpars_compass.txt")...);
     res = Matrix{Float64}(Nb,length(minpars0))
     llh = Vector{Float64}(Nb)
-    @progress for b in 27:Nb
+    b = 101
+    @progress for bi in 1:Nb
+        @show b, "progress is ", bi/Nb
         Nd = size(PsiDT,1)
         const _PsiDT = hcat([PsiDT[rand(1:Nd),:] for i in 1:Nd]...).'
         # @show size(_PsiDT)
         _LLH, _GRAD, _LLH_and_GRAD!, _HES = createLLHandGRAD(_PsiDT, BmatMC, ModelBlocks);
-        @time _minpars = minimize(_LLH, _LLH_and_GRAD!;
-            verbose=1, starting_pars=minpars0) #,algorithm=:LD_MMA
-        # @show minpars
-        res[b,:] = _minpars
-        llh[b] = _LLH(_minpars)
-        writedlm(joinpath(path_to_tmp_res,"BootstrapResults-$(b).txt"), res[b,:])
-        writedlm(joinpath(path_to_tmp_res,"llh-$(b).txt"), llh[b])
+        try
+            @time _minpars = minimize(_LLH, _LLH_and_GRAD!;
+                verbose=0, starting_pars=minpars0) #,algorithm=:LD_MMA
+            # @show minpars
+            b += 1
+            res[bi,:] = _minpars
+            llh[bi] = _LLH(_minpars)
+            writedlm(joinpath(path_to_tmp_res,"BootstrapResults-$(b).txt"), res[bi,:])
+            writedlm(joinpath(path_to_tmp_res,"llh-$(b).txt"), llh[bi])
+        catch y
+            @show y
+        end
     end
     res
 end
-# BootstrapResults = let Nb = 50, path_to_tmp_res = joinpath("data","bootstrap_tmp")
-#     res = Matrix{Float64}(Nb,Npar)
-#     for b in 1:Nb
-#         res[b,:] = readdlm(joinpath(path_to_tmp_res,"BootstrapResults-$(b).txt"))
-#     end
-#     res
-# end
-# writedlm(joinpath("data","bootstrap_tmp","bootstrap_r3.txt"), BootstrapResults)
+
+BootstrapResults = let Nb = 578, path_to_tmp_res = joinpath("data","bootstrap_tmp")
+    res = Matrix{Float64}(Nb,Npar)
+    for b in 1:Nb
+        res[b,:] = readdlm(joinpath(path_to_tmp_res,"BootstrapResults-$(b).txt"))
+    end
+    res
+end
+writedlm(joinpath("data","bootstrap_tmp","bootstrap_main_$(mass_bin_name).txt"), BootstrapResults)
 # llh = let Nb = 100, path_to_tmp_res = joinpath("data","bootstrap_tmp")
 #     res = Vector{Float64}(Nb)
 #     for b in 1:Nb
@@ -218,31 +230,22 @@ end
 #     end
 #     res
 # end
-
-minpars
-histogram(BootstrapResults[:,1], bins=10)
-vline!([minpars[1]])
-scatter(BootstrapResults[:,10], BootstrapResults[:,40])
-
-btp_error = sqrt.([cov(BootstrapResults[:,i]) for i in 1:Npar])
-btp_mean = [mean(BootstrapResults[:,i]) for i in 1:Npar]
-
-plot(hcat(minpars,btp_mean), lab=["main fit" "bootstrap mean"], xlab = "# parameter")
-
-let tog = [[minpars[i],diag_error[i]] for i in 1:length(minpars)]
-    stog = sort(tog, by=x->abs(x[1]), rev=true)
-    hcat_stog = hcat(stog...)
-    plot(abs.(hcat_stog[1,:]), yerr = hcat_stog[2,:], ylim=(0,1),
-    lab="", title="PWA results and the errors Hessian", xlab="# parameter", size=(800,500))
+@time for b in 1:size(BootstrapResults,1)
+    _br = BootstrapResults[b,:]
+    _sdm = size(PsiDT,1)*pars_to_SDM(_br, BmatFU, ModelBlocks)
+    path_to_tmp_res = joinpath("data","bootstrap_tmp","SDMs")
+    writedlm(joinpath(path_to_tmp_res,"rb-$(b)-sdm.txt"), [real(_sdm) imag(_sdm)])
 end
-savefig(joinpath("plots","parameters_with_hessian_errors.png"))
-savefig(joinpath("plots","parameters_with_hessian_errors.pdf"))
+SDMs = [read_SDM(joinpath("data","bootstrap_tmp","SDMs","rb-$(i)-sdm.txt")) for i in 1:size(BootstrapResults,1)]
 
-let tog = [[btp_mean[i],btp_error[i]] for i in 1:length(minpars)]
-    stog = sort(tog, by=x->abs(x[1]), rev=true)
-    hcat_stog = hcat(stog...)
-    plot(abs.(hcat_stog[1,:]), yerr = hcat_stog[2,:], ylim=(0,1),
-    lab="", title="PWA results and the errors Bootstrap", xlab="# parameter", size=(800,500))
-end
-savefig(joinpath("plots","parameters_with_bootstrap_errors.png"))
-savefig(joinpath("plots","parameters_with_bootstrap_errors.pdf"))
+#####################################################################################
+#####################################################################################
+
+using PlotHelper
+plotBSTsample(40, SDMs, SDM, SDM_RD, SDM_RD_err)
+
+combres = vcat([constract_values(i, SDMs, SDM, SDM_RD, SDM_RD_err) for i in 1:Nwaves]...);
+plotBSTsummary(combres) #  tosort=true, toannotate=true
+
+saveBSTSplot(joinpath("plots","bootstrap_summary_2300_t1.pdf"),
+    SDMs, SDM, SDM_RD, SDM_RD_err)
