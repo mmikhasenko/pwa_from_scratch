@@ -159,29 +159,8 @@ savefig(joinpath("plots","sdm2_results.pdf"))
 sum(diag(SDM))
 sum(diag(SDM_RD))
 
-diag(SDM)
-
-minpars_rd = SDM_to_pars(SDM_RD/size(PsiDT,1), BmatFU, ModelBlocks)
-minpars_cv = SDM_to_pars(SDM   /size(PsiDT,1), BmatFU, ModelBlocks)
-
-
-arg(z) = atan2(imag(z), real(z))
-SDM_with_sign = diag(SDM).*cis.([arg(SDM[2,i]) for i in 1:size(SDM,1)]);
-
-
-gr()
-let v = plot(size=(500,400))
-    cutoff = 0.2*max(abs.(SDM_with_sign)...)
-    for (i,v) in enumerate(SDM_with_sign)
-        plot!([0, real(v)], [0, imag(v)], lab="", l=(1))
-        (abs(v) > cutoff) && annotate!(
-            [(0.75real(v), 0.75imag(v), text(wavenames[i][3:end],10))])
-    end
-    plot!()
-end
-savefig("/tmp/arrow_intensities.pdf")
-writedlm("/tmp/SDM.2300.re",real(SDM))
-writedlm("/tmp/SDM.2300.im",imag(SDM))
+plotPolarSDM(SDM, cutoff_scale=0.55)
+savefig(joinpath("data","arrow_intensities.pdf"))
 
 #####################################################################################
 #####################################################################################

@@ -1,7 +1,8 @@
 module PlotHelper
 using Plots
 
-export plotBSTsample, saveBSTSplot, plotBSTsummary
+export plotBSTsample, saveBSTSplot, plotBSTsummary, plotPolarSDM
+export format_wavename
 
 function plotBSTsample(ind, SDMs, SDM, SDM_RD, SDM_RD_err)
     bts = [real(s[ind,ind]) for s in SDMs]
@@ -34,6 +35,32 @@ function plotBSTsummary(combres; tosort=false, toannotate=false)
     scatter!(mat[:,3], yerr=mat[:,4], xerr=[0.5 for i in 1:size(mat,1)],
         m=(1, stroke(0.0)), lab="official fit")
     scatter!(mat[:,2], m=(1.5, :red, :d, stroke(0.0)), lab="main fit")
+end
+
+
+function format_wavename(name)
+    name == "flat" && return "\$\\mathrm{FLAT}\$"
+    tmps = "\$$(name[4])^{$(name[5:6])}$(name[8])^{$(name[9])}\\,$(name[10:end-1])\\,$(name[end])\$"
+    for (k,v) in Dict("rho" => "\\rho",
+                       "f2" => "f_2",
+                       "pi" => "\\pi",
+                       "(\\pi\\pi)_S" => "\\sigma")
+        tmps = replace(tmps,k,v)
+    end
+    tmps
+end
+
+function plotPolarSDM(SDM; cutoff_scale=0.4)
+    plot(proj=:polar)
+    arg(z) = atan2(imag(z), real(z))
+    SDM_with_sign = sqrt.(diag(SDM)).*cis.([arg(SDM[2,i]) for i in 1:size(SDM,1)]);
+    cutoff = cutoff_scale*max(abs.(SDM_with_sign)...)
+    for (i,v) in enumerate(SDM_with_sign)
+        plot!([0, arg(v)], [0, abs(v)], lab="", l=(1))
+        (abs(v) > cutoff) && annotate!(
+            [(arg(v), 1.1*abs(v), text(format_wavename(wavenames[i]),10))])
+    end
+    plot!()
 end
 
 
