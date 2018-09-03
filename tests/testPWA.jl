@@ -246,6 +246,7 @@ plotBSTsample(40, SDMs, SDM, SDM_RD, SDM_RD_err)
 
 combres = vcat([constract_values(i, SDMs, SDM, SDM_RD, SDM_RD_err) for i in 1:Nwaves]...);
 plotBSTsummary(combres) #  tosort=true, toannotate=true
+savefig(joinpath("plots","bootstrap_combined_2300_t1.pdf"))
 
 saveBSTSplot(joinpath("plots","bootstrap_summary_2300_t1.pdf"),
     SDMs, SDM, SDM_RD, SDM_RD_err)
