@@ -29,9 +29,9 @@ export contract_to_intensity
 
 function precalculate_compass_basis(fin,fout)
     mm = readdlm(fin); Nd = size(mm,1)
-    m2 = fill(0.0im, Nd, 88)
+    m2 = fill(0.0im, Nd, Nwaves)
     @progress for e in 1:Nd
-        for i in 1:88
+        for i in 1:Nwaves
             m2[e,i] = COMPASS_wave(i,mm[e,:]...);
         end
     end
@@ -46,10 +46,11 @@ end
 
 function get_parameter_map(block_masks)
     temp = []; numb = []
+    Nw = length(block_masks[1])
     for (i,bl) in enumerate(block_masks)
         # push false for the first parameter, true for others
         push!(temp,false,[true for i=1:(sum(bl)-1)]...);
-        push!(numb,collect(1:88)[bl]...)
+        push!(numb,collect(1:Nw)[bl]...)
     end
     Tmap = fill(0,2,sum(temp+1))
     count=1
@@ -83,7 +84,8 @@ end
 
 extnd(Ψ, tmap) = [((tmap[2,i]==0) ? Ψ[tmap[1,i]] : 1im*Ψ[tmap[2,i]]) for i in 1:size(tmap,2)]
 function shrnk(p, tmap)
-    outv = fill(0.0im,88)
+    Nw = tmap[2,end] # work around
+    outv = fill(0.0im,Nw)
     for i in 1:size(tmap,2)
         (tmap[1,i] != 0) && (outv[tmap[1,i]] += p[i]);
         (tmap[2,i] != 0) && (outv[tmap[2,i]] += 1.0im*p[i]);
