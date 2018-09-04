@@ -7,7 +7,9 @@ export swap_kin_parameters
 export fρ, ff2, fρ3, fσ, ff0_980, ff0_1500, BlttWskpf
 export COMPASS_wave
 #, COMPASS_waves, COMPASS_wave_short
-export wavenames, wavesfile, Nwaves
+export wavenames, wavesfile, Nwaves, thresholds_filter
+
+export buildbasis
 
 const mπ = 0.13956755; const mπ2 = mπ^2;
 const mK = 0.493677; const mK2 = mK^2;
@@ -117,45 +119,70 @@ function ZϵDD(J::Int64,M::Int64,ϵ::Bool,L::Int64,l::Int64, Dϵ, D)
         for lm=-min(l,J):min(l,J))
 end
 
-
-# constract COMPASS basis
-# pwd()
-wavesfile = readdlm(pwd()*"/src/wavelist_formated.txt")
-Nwaves = size(wavesfile,1)
 isobarsV = [fσ,fρ,ff2,fρ3]
 isobarsS = [fσ,ff0_980,ff0_1500]
 
+# pwd()
+
 basis = []
 wavenames = []
-let flat(σ1,cosθ1,ϕ1,cosθ23,ϕ23,m1sq,m2sq,m3sq,s) = 1.0+0.0im
-    push!(basis,flat)
-    push!(wavenames,"flat")
-end
-for i in 2:Nwaves
-    wn, name, J, P, M, ϵ, S, L = wavesfile[i,:]
-    fi = (S ≥ 0) ? isobarsV[S+1] : isobarsS[1-S]
-    S = (S≥0 ? S : 0)
-    @eval function $(Symbol("wave_$(wn)"))(σ1,cosθ1,ϕ1,cosθ23,ϕ23,m1sq,m2sq,m3sq,s)
-#         println("\nwave ",$J," ",$P," ",$M," ",$ϵ," ",$L," ",$S)
-        # if (sqrt(σ1) < (sqrt(m2sq)+sqrt(m3sq))) || ((sqrt(σ1) > (sqrt(s)-sqrt(m1sq))))
-        #     error("Check your masses. There is inconsitency, probably.")
-        # end
-        τ1 = [cosθ1,ϕ1,cosθ23,ϕ23]
-        τ3 = Vector{Float64}(4)
-        σ3,τ3[1],τ3[2],τ3[3],τ3[4] = change_basis(σ1,τ1...,m1sq,m2sq,m3sq,s)
-        # τ1[3] *= -1; τ1[4] += π
-        τ1[3] *= -1; τ1[4] += π
-        R = 1/0.2024; #it was 5
-        (abs(τ3[1]) ≈ 1.0) && (τ3[1] = sign(τ3[1])*1.0);
-        (abs(τ3[3]) ≈ 1.0) && (τ3[3] = sign(τ3[3])*1.0);
-        (abs(τ3[1]) > 1.0 || abs(τ3[3]) > 1.0) && error("Something is wrong! (abs($(τ3[1])) > 1.0 || abs($(τ3[3]) > 1.0)")
-        bw1 = ($L == 0) ? 1.0 : BlttWskpf[$L]($λ(s,σ1,m1sq)/(4s)*R^2)
-        bw3 = ($L == 0) ? 1.0 : BlttWskpf[$L]($λ(s,σ3,m3sq)/(4s)*R^2)
-        return Z($J,$M,($P==$ϵ),$L,$S,τ1...)*$(fi)(σ1)*sqrt(bw1) +
-               Z($J,$M,($P==$ϵ),$L,$S,τ3...)*$(fi)(σ3)*sqrt(bw3)
+Nwaves = 0
+wavesfile = []
+
+# constract COMPASS basis
+function buildbasis(path_to_wavelist; path_to_thresholds="", M3pi=3.0)
+
+    (! isfile(path_to_wavelist)) && error("Cannot find $(path_to_wavelist)!")
+
+    wavesInFile = readdlm(path_to_wavelist)
+
+    global thresholds = fill(0.0,size(wavesInFile,1))
+    let path = path_to_thresholds
+        if isfile(path) && size(wavesInFile,1)==88
+            v = readdlm(path)
+            for i in 1:size(v,1)
+                global thresholds[Int64(v[i,1])] = v[i,2]
+            end
+        else
+            warn("Do not consider thresholds!")
+        end
     end
-    push!(wavenames,name)
-    @eval push!(basis, $(Symbol("wave_$(wn)")))
+    global thresholds_filter = thresholds .< M3pi
+    global wavesfile = wavesInFile[thresholds_filter,:]
+    global Nwaves = size(wavesfile,1)
+    global basis = []
+    global wavenames = []
+
+    for i in 1:Nwaves
+        # special case
+        if wavesfile[i,2] == "FLAT"
+            flat(σ1,cosθ1,ϕ1,cosθ23,ϕ23,m1sq,m2sq,m3sq,s) = 1.0+0.0im
+            push!(basis,flat)
+            push!(wavenames,"flat")
+            continue
+        end
+        # special case
+        wn, name, J, P, M, ϵ, S, L = wavesfile[i,:]
+        fi = (S ≥ 0) ? isobarsV[S+1] : isobarsS[1-S]
+        S = (S≥0 ? S : 0)
+        @eval function $(Symbol("wave_$(wn)"))(σ1,cosθ1,ϕ1,cosθ23,ϕ23,m1sq,m2sq,m3sq,s)
+            τ1 = [cosθ1,ϕ1,cosθ23,ϕ23]
+            τ3 = Vector{Float64}(4)
+            σ3,τ3[1],τ3[2],τ3[3],τ3[4] = change_basis(σ1,τ1...,m1sq,m2sq,m3sq,s)
+            # τ1[3] *= -1; τ1[4] += π
+            τ1[3] *= -1; τ1[4] += π  # compass `convension` (inconsistent, btw)
+            R = 1/0.2024; #it was 5
+            (abs(τ3[1]) ≈ 1.0) && (τ3[1] = sign(τ3[1])*1.0);
+            (abs(τ3[3]) ≈ 1.0) && (τ3[3] = sign(τ3[3])*1.0);
+            (abs(τ3[1]) > 1.0 || abs(τ3[3]) > 1.0) && error("Something is wrong! (abs($(τ3[1])) > 1.0 || abs($(τ3[3]) > 1.0)")
+            bw1 = ($L == 0) ? 1.0 : BlttWskpf[$L]($λ(s,σ1,m1sq)/(4s)*R^2)
+            bw3 = ($L == 0) ? 1.0 : BlttWskpf[$L]($λ(s,σ3,m3sq)/(4s)*R^2)
+            return Z($J,$M,($P==$ϵ),$L,$S,τ1...)*$(fi)(σ1)*sqrt(bw1) +
+                Z($J,$M,($P==$ϵ),$L,$S,τ3...)*$(fi)(σ3)*sqrt(bw3)
+        end
+        push!(wavenames,name)
+        @eval push!(basis, $(Symbol("wave_$(wn)")))
+    end
 end
 
 
