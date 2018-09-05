@@ -4,6 +4,7 @@ using PWAHelper
 
 export SDM_to_pars, pars_to_SDM
 export write_SDM, read_SDM
+export constract_values
 
 function pars_to_SDM(pars, Bmat, block_masks)
     Tmap = get_parameter_map(block_masks)

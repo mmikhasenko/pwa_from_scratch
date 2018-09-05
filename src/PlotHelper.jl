@@ -4,7 +4,7 @@ using Plots
 export plotBSTsample, saveBSTSplot, plotBSTsummary, plotPolarSDM
 export format_wavename
 
-function plotBSTsample(ind, SDMs, SDM, SDM_RD, SDM_RD_err)
+function plotBSTsample(ind::Int, SDMs, SDM, SDM_RD, SDM_RD_err)
     bts = [real(s[ind,ind]) for s in SDMs]
     stephist(bts, bins=20, lab="bootstrap", title="SDM[$(ind),$(ind)]")
     vline!([real(SDM[ind,ind])], l=(:red, 2), lab="main fit")
@@ -12,6 +12,16 @@ function plotBSTsample(ind, SDMs, SDM, SDM_RD, SDM_RD_err)
     vline!(quantile(bts,[0.16,0.84]), lab="quantile")
     plot!()
 end
+
+function plotBSTsample(func, SDMs, SDM, SDM_RD, SDM_RD_err)
+    bts = [func(s) for s in SDMs]
+    stephist(bts, bins=20, lab="bootstrap", title="")
+    vline!([func(SDM)], l=(:red, 2), lab="main fit")
+    vline!([func(SDM_RD)], l=(:orange, 1.5), lab="official fit")
+    vline!(quantile(bts,[0.16,0.84]), lab="quantile")
+    plot!()
+end
+
 
 function saveBSTSplot(fout, SDMs, SDM, SDM_RD, SDM_RD_err)
     Nw = size(SDM,2)

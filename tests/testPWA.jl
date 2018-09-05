@@ -71,7 +71,7 @@ minpars0 = vcat(readdlm("minpars_compass_$(mass_bin_name).txt")...)[1:Npar];
 # start more precise algorithm
 @time minpars = minimize(LLH, LLH_and_GRAD!;
     algorithm = :LD_SLSQP, verbose=1, starting_pars=minpars)
-writedlm("minpars_compass_$(mass_bin_name)-2.txt", minpars)
+writedlm("minpars_compass_$(mass_bin_name).txt", minpars)
 
 #####################################################################################
 #####################################################################################
@@ -241,6 +241,11 @@ histogram(BootstrapResults[:,1], bins=100)
 
 using PlotHelper
 plotBSTsample(2, SDMs, SDM, SDM_RD, SDM_RD_err)
+arg(z) = atan2(imag(z),real(z))
+plotBSTsample(x->180/π*arg(x[2,15]*cis(π/2))-90, SDMs, SDM, SDM_RD, SDM_RD_err)
+plotBSTsample(x->180/π*arg(x[2,15]), SDMs, SDM, SDM_RD, SDM_RD_err)
+
+writedlm("/tmp/phase215.txt",broadcast(x->180/π*arg(x[2,15]*cis(π/2))-90, SDMs))
 
 combres = vcat([constract_values(i, SDMs, SDM, SDM_RD, SDM_RD_err) for i in 1:Nwaves]...);
 plotBSTsummary(combres) #  tosort=true, toannotate=true
