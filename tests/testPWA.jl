@@ -35,6 +35,8 @@ buildbasis(joinpath(pwd(),"src/wavelist_formated.txt"); M3pi=parse(mass_bin_name
 @time precalculate_compass_basis(kinvar_mc, basisfunc_mc)
 @time precalculate_compass_basis(kinvar_fu, basisfunc_fu)
 
+@time const PsiMC = read_precalc_basis(basisfunc_mc);
+
 @time const BmatMC = let
     @time const PsiMC = read_precalc_basis(basisfunc_mc);
     v = [sum(PsiMC[e,i]'*PsiMC[e,j] for e in 1:size(PsiMC,1))
@@ -204,44 +206,45 @@ v = let Nb = 500
         end
     end
 end
-fetch(v[2])
-
-# BootstrapResults = let Nb = 16, path_to_tmp_res = joinpath("data","bootstrap_tmp","first_att")
-#     res = Matrix{Float64}(Nb,Npar)
+# fetch(v[2])
+# BootstrapResults = let Nb = 500, path_to_tmp_res = joinpath("data","bootstrap_tmp")
+#     res = []
 #     for b in 1:Nb
-#         res[b,:] = readdlm(joinpath(path_to_tmp_res,"BootstrapResults-$(b).txt"))
+#         file = joinpath(path_to_tmp_res,"BootstrapResults-$(b).txt")
+#         isfile(file) && push!(res, readdlm(file))
 #     end
-#     res
+#     hcat(res...)'
 # end
 # writedlm(joinpath("data","bootstrap_tmp","bootstrap_main_$(mass_bin_name).txt"), BootstrapResults)
 # llh = let Nb = 578, path_to_tmp_res = joinpath("data","bootstrap_tmp")
-#     res = Vector{Float64}(Nb)
+#     res = []
 #     for b in 1:Nb
-#         res[b] = readdlm(joinpath(path_to_tmp_res,"llh-$(b).txt"))[1]
+#         file = joinpath(path_to_tmp_res,"llh-$(b).txt")
+#         isfile(file) && push!(res, readdlm(file))
 #     end
-#     res
+#     hcat(res...)'[:,1]
 # end
 # writedlm(joinpath("data","bootstrap_tmp","bootstrap_llh_$(mass_bin_name).txt"), llh)
 @time for b in 1:size(BootstrapResults,1)
     _br = BootstrapResults[b,:]
     _sdm = size(PsiRD,1)*pars_to_SDM(_br, BmatFU, ModelBlocks)
-    path_to_tmp_res = joinpath("data","bootstrap_tmp","SDMs")
+    path_to_tmp_res = joinpath("data","bootstrap_tmp","SDMs-1540_1560")
     writedlm(joinpath(path_to_tmp_res,"rb-$(b)-sdm.txt"), [real(_sdm) imag(_sdm)])
 end
-SDMs = [read_SDM(joinpath("data","bootstrap_tmp","SDMs","rb-$(i)-sdm.txt")) for i in 1:size(BootstrapResults,1)]
+SDMs = [read_SDM(joinpath("data","bootstrap_tmp","SDMs-$(mass_bin_name)","rb-$(i)-sdm.txt")) for i in 1:size(BootstrapResults,1)]
 
 #####################################################################################
 #####################################################################################
 
-histogram!(BootstrapResults[:,2], bins=100)
-histogram(BootstrapResults1[:,2], bins=100)
+histogram(BootstrapResults[:,2], bins=100)
+histogram(BootstrapResults[:,1], bins=100)
 
 using PlotHelper
-plotBSTsample(40, SDMs, SDM, SDM_RD, SDM_RD_err)
+plotBSTsample(2, SDMs, SDM, SDM_RD, SDM_RD_err)
 
 combres = vcat([constract_values(i, SDMs, SDM, SDM_RD, SDM_RD_err) for i in 1:Nwaves]...);
 plotBSTsummary(combres) #  tosort=true, toannotate=true
-savefig(joinpath("plots","bootstrap_combined_2300_t1.pdf"))
+savefig(joinpath("plots","bootstrap_combined_$(mass_bin_name)_t1.pdf"))
 
 saveBSTSplot(joinpath("plots","bootstrap_summary_2300_t1.pdf"),
     SDMs, SDM, SDM_RD, SDM_RD_err)
