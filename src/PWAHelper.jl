@@ -9,8 +9,8 @@ export precalculate_compass_basis, read_precalc_basis
 # export precalculate_compass_basis_txt, read_precalc_basis_txt
 export get_parameter_map, make_pblock_masks
 export extnd, shrnk, cohsq, cohts
-export contract_to_intensity
-
+export contract_to_intensity, get_intesity
+export normalize_pars!
 
 # function precalculate_compass_basis(fin,fout)
 #     mm = readdlm(fin); Nd = size(mm,1)
@@ -113,5 +113,18 @@ function contract_to_intensity(ΨΨstar, block_masks)
         1im*get(Tmap[1,i],Tmap[2,j])
             ) for j in 1:Np, i in 1:Np]
 end
+
+
+function get_intesity(pars, form, block_masks)
+    pblocks = make_pblock_masks(block_masks)
+    BM = real.(contract_to_intensity(form,block_masks))
+    Np = length(pars)
+    sum(pars[i]*BM[i,j]*pars[j] for i=1:Np, j=1:Np)
+end
+
+function normalize_pars!(pars, form, block_masks)
+    pars /=  sqrt(get_intesity(pars, form, block_masks))
+end
+
 
 end

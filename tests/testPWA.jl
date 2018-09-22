@@ -38,11 +38,13 @@ buildbasis(joinpath(pwd(),"src/wavelist_formated.txt"); M3pi=parse(mass_bin_name
 @time const PsiMC = read_precalc_basis(basisfunc_mc);
 
 @time const BmatMC = let
-    @time const PsiMC = read_precalc_basis(basisfunc_mc);
     v = [sum(PsiMC[e,i]'*PsiMC[e,j] for e in 1:size(PsiMC,1))
         for i=1:Nwaves, j=1:Nwaves] /size(PsiMC,1);
     v
 end
+write_SDM(BmatMC, "BmatMC_$(mass_bin_name).txt")
+BmatMC = read_SDM("BmatMC_$(mass_bin_name).txt")
+
 # 10.593515 seconds (101.00 k allocations: 4.752 MiB)
 
 let BmatMC_n = [BmatMC[i,j]/sqrt(BmatMC[i,i]*BmatMC[j,j]) for i=1:Nwaves, j=1:Nwaves];
@@ -63,6 +65,10 @@ LLH, GRAD, LLH_and_GRAD!, HES = createLLHandGRAD(PsiRD, BmatMC, ModelBlocks);
 test_t = rand(Npar)
 @time @show LLH(test_t)
 @time @show LLH(test_t)
+
+let scale = get_intesity(test_t, BmatMC, ModelBlocks)
+    get_intesity(test_t ./ sqrt(scale), BmatMC, ModelBlocks)
+end
 
 minpars0 = vcat(readdlm("minpars_compass_$(mass_bin_name).txt")...)[1:Npar];
 # start nice algorithm which goes directly to the minimum
@@ -96,6 +102,37 @@ savefig(joinpath("plots","official_comass_fit_parameters_nonegref.pdf"))
 
 #####################################################################################
 #####################################################################################
+
+intensity_ranges_per_parameter = [begin
+        pars = fill(0.0,Npar)
+        pars[i] = 1.0
+        get_intesity(pars, BmatMC, ModelBlocks)
+    end for i=1:Npar]
+limits = 1./sqrt.(intensity_ranges_per_parameter)
+
+function get_rand_starting_values(limits)
+    return [(2*rand()-1)*l for l in limits]
+end
+
+# start from random points on the contrained surface
+for e in 1:100
+    rand_pars =  get_rand_starting_values(1.5.*limits)
+    normalize_pars!(rand_pars, BmatMC, ModelBlocks)
+    @time pars_in_min = minimize(LLH, LLH_and_GRAD!;
+        algorithm = :LD_LBFGS, verbose=1, starting_pars=rand_pars)
+    writedlm("data/studies_of_minimas/m$(e).txt", pars_in_min)
+end
+
+minima = hcat([readdlm("data/studies_of_minimas/m$(e).txt")[:,1] for e in 1:12]...)
+minimaLLH = [LLH(minima[:,i]) for i=1:size(minima,2)]
+
+1 .- minima[:,9] ./ minima[:,1]
+minimaLLH.-LLH(minpars0)
+histogram(minimaLLH.-LLH(minpars0), bins=linspace(-2,5,10))
+
+#####################################################################################
+#####################################################################################
+
 
 @time weights = let mpars = minpars,
     Tmap = get_parameter_map(ModelBlocks),
@@ -136,8 +173,12 @@ savefig(joinpath("plots","data_with_errors.pdf"))
     [sum(PsiFU[e,i]'*PsiFU[e,j] for e in 1:size(PsiFU,1))
         for i=1:Nwaves, j=1:Nwaves] /size(PsiMC,1)
 end
+write_SDM(BmatFU, "BmatFU_$(mass_bin_name).txt")
+BmatFU = read_SDM("BmatFU_$(mass_bin_name).txt")
 
 SDM = size(PsiRD,1)*pars_to_SDM(minpars, BmatFU, ModelBlocks)
+SDM1 = size(PsiRD,1)*pars_to_SDM(minima[:,1], BmatFU, ModelBlocks)
+SDM9 = size(PsiRD,1)*pars_to_SDM(minima[:,9], BmatFU, ModelBlocks)
 
 minpars./SDM_to_pars(SDM/size(PsiRD,1), BmatFU, ModelBlocks)
 SDM_RD = let path = "/localhome/mikhasenko/cernbox/tmp/pwa_from_scratch_data"
@@ -231,7 +272,8 @@ end
     path_to_tmp_res = joinpath("data","bootstrap_tmp","SDMs-1540_1560")
     writedlm(joinpath(path_to_tmp_res,"rb-$(b)-sdm.txt"), [real(_sdm) imag(_sdm)])
 end
-SDMs = [read_SDM(joinpath("data","bootstrap_tmp","SDMs-$(mass_bin_name)","rb-$(i)-sdm.txt")) for i in 1:size(BootstrapResults,1)]
+SDMs = [read_SDM(joinpath("data","bootstrap_tmp","SDMs_$(mass_bin_name)","rb-$(i)-sdm.txt"))
+    for i in 1:497]
 
 #####################################################################################
 #####################################################################################
@@ -253,3 +295,24 @@ savefig(joinpath("plots","bootstrap_combined_$(mass_bin_name)_t1.pdf"))
 
 saveBSTSplot(joinpath("plots","bootstrap_summary_2300_t1.pdf"),
     SDMs, SDM, SDM_RD, SDM_RD_err)
+
+##############################################################################
+##############################################################################
+
+plot(hcat(real.(diag(SDM_RD)), real.(diag(SDM1)), real.(diag(SDM9))),
+    lab=["official" "min1" "min9"], lc=[:red :orange :green],
+    xlab="# wave", ylab = "Diagonal of the SDM")
+savefig("plots/two_minima_diagonal.pdf")
+
+histogram([real(s[13,13]) for s in SDMs], bins=100, xlab=wavenames[13][3:end],
+    c=:grey, lab="bootstrap")
+vline!(broadcast(x->real(x[13,13]),[SDM_RD, SDM1, SDM9])',
+    lab=["official" "min1" "min9"], lw = 2, lc=[:red :orange :green])
+savefig("plots/two_minimas_sdm13.pdf")
+
+histogram(broadcast(x->180/π*arg(x[2,15]*cis(π/2))-90+360,SDMs), bins=100,
+    c=:grey, xlab="1++0+: f0(980)piP - rhopiS (deg.)", ylab = "Bootstrap Entries",
+    lab="bootstrap")
+vline!(broadcast(x->180/π*arg(x[2,15]*cis(π/2))-90+360,[SDM_RD, SDM1, SDM9])',
+    lab=["official" "min1" "min9"], lw = 2, lc=[:red :orange :green])
+savefig("plots/two_minimas_sdm215.pdf")
