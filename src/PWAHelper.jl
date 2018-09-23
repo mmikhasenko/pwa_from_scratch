@@ -123,7 +123,9 @@ function get_intesity(pars, form, block_masks)
 end
 
 function normalize_pars!(pars, form, block_masks)
-    pars /=  sqrt(get_intesity(pars, form, block_masks))
+    Intens = get_intesity(pars, form, block_masks)
+    pars ./=  sqrt(Intens)
+    pars
 end
 
 

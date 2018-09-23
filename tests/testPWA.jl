@@ -115,7 +115,7 @@ function get_rand_starting_values(limits)
 end
 
 # start from random points on the contrained surface
-for e in 1:100
+for e in 13:100
     rand_pars =  get_rand_starting_values(1.5.*limits)
     normalize_pars!(rand_pars, BmatMC, ModelBlocks)
     @time pars_in_min = minimize(LLH, LLH_and_GRAD!;
@@ -123,11 +123,10 @@ for e in 1:100
     writedlm("data/studies_of_minimas/m$(e).txt", pars_in_min)
 end
 
-minima = hcat([readdlm("data/studies_of_minimas/m$(e).txt")[:,1] for e in 1:12]...)
+minima = hcat([readdlm("data/studies_of_minimas/m$(e).txt")[:,1] for e in 1:95]...)
 minimaLLH = [LLH(minima[:,i]) for i=1:size(minima,2)]
 
-1 .- minima[:,9] ./ minima[:,1]
-minimaLLH.-LLH(minpars0)
+collect(1:95)[minimaLLH.-LLH(minpars0) .> 5]
 histogram(minimaLLH.-LLH(minpars0), bins=linspace(-2,5,10))
 
 #####################################################################################
@@ -179,6 +178,7 @@ BmatFU = read_SDM("BmatFU_$(mass_bin_name).txt")
 SDM = size(PsiRD,1)*pars_to_SDM(minpars, BmatFU, ModelBlocks)
 SDM1 = size(PsiRD,1)*pars_to_SDM(minima[:,1], BmatFU, ModelBlocks)
 SDM9 = size(PsiRD,1)*pars_to_SDM(minima[:,9], BmatFU, ModelBlocks)
+SDM26 = size(PsiRD,1)*pars_to_SDM(minima[:,26], BmatFU, ModelBlocks)
 
 minpars./SDM_to_pars(SDM/size(PsiRD,1), BmatFU, ModelBlocks)
 SDM_RD = let path = "/localhome/mikhasenko/cernbox/tmp/pwa_from_scratch_data"
