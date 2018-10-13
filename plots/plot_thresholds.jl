@@ -1,6 +1,7 @@
 using DelimitedFiles
 using Plots
 using LaTeXStrings
+pyplot()
 
 wavesInFile = readdlm("src/wavelist_formated.txt")
 
@@ -21,11 +22,13 @@ end
 # gr()
 # default(fmt = :png)
 let mv = 0.5:0.02:2.5
-    plot(mv, [sum((thresholds[i]<m) for i in 1:88) for m in mv],
-        xlab = L"M_{3π} bin", ylab="Number of waves")
+    bar(mv, [sum((thresholds[i]<m) for i in 1:88) for m in mv],
+        xlab = L"M_{3π}\,\,\mathrm{bins}", ylab="Number of waves", lab="",
+        c=:lightblue, lw=0, yticks=[0,40,61,88])
 end
-savefig("/tmp/test.pdf")
+savefig("plots/thresholds.pdf")
 
 # plot(rand(10))
 
 # [sum((thresholds[i]<m) for i in 1:88) for m in 0.5:0.02:2.5]
+get_color_palette
