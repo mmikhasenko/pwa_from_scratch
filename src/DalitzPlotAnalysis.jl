@@ -52,7 +52,7 @@ for tp in [:Float64, :(Complex{Float64})]
             p3_in23_z = -p23bu*cosθ23;
             # boost to lab frame from (23) frame
             γ1 = (s + s1 - m1sq)/sqrt(4*s*s1);
-            β1 = sqrt(1.-1./γ1^2);
+            β1 = sqrt(1.0-1.0/γ1^2);
             p3_b_z = γ1*(β1*p3_in23_E+p3_in23_z);
 
             p3_cms = sqrt(λ(s,m3sq,s3))/sqrt(4s)
@@ -124,18 +124,18 @@ for tp in [:Float64, :(Complex{Float64})]
                    -p23bu*cosθ23];
         # boost to lab frame from (23) frame
         γ1 = (s + s1 - m1sq)/sqrt(4*s*s1);
-        β1 = sqrt(1.-1./γ1^2);
+        β1 = sqrt(1.0-1.0/γ1^2);
         p3_b = [γ1*(p3_in23[1]+β1*p3_in23[4]),
                 p3_in23[2],
                 p3_in23[3],
                 γ1*(β1*p3_in23[1]+p3_in23[4])];
 
-        ct1 = cosθ1; st1 = sqrt(1.-cosθ1^2); cp1 = cos(ϕ1); sp1 = sin(ϕ1);
+        ct1 = cosθ1; st1 = sqrt(1.0-cosθ1^2); cp1 = cos(ϕ1); sp1 = sin(ϕ1);
         # Rz(phi1) * Ry(theta1) * p3_boost
         p3_rot = [p3_b[1],
                   cp1*ct1* p3_b[2] + (-sp1)* p3_b[3] + cp1*st1* p3_b[4],
                   sp1*ct1* p3_b[2] +   cp1 * p3_b[3] + sp1*st1* p3_b[4],
-                     -st1* p3_b[2] +     0 * p3_b[3] +     ct1* p3_b[4]];
+                     -st1* p3_b[2] +   0.0 * p3_b[3] +     ct1* p3_b[4]];
 
         cosθ3 = -p3_rot[4]/sqrt(p3_b[2]^2+p3_b[3]^2+p3_b[4]^2);
         ϕ3 = (p3_rot[2] != zero(p3_rot[2])) ? atan2(-p3_rot[3], -p3_rot[2]) : rand()*one(p3_rot[2]);
@@ -144,11 +144,11 @@ for tp in [:Float64, :(Complex{Float64})]
         cosθ12_d = (2 * sqrt(λ(s3, m1sq, m2sq)/(4*(s3))) * sqrt(λ(s, m3sq, s3)/(4*(s3))) );
         cosθ12 = cosθ12_d ≈ 0.0+0.0im ? 2.0*rand()-1.0*one(s1) : cosθ12_n/cosθ12_d;
 
-        n1 = [0.,
-             -sqrt(1.-cosθ1^2)*cos(ϕ1),
-             -sqrt(1.-cosθ1^2)*sin(ϕ1),
+        n1 = [0.0,
+             -sqrt(1-cosθ1^2)*cos(ϕ1),
+             -sqrt(1-cosθ1^2)*sin(ϕ1),
              -cosθ1];
-        ct3 = cosθ3; st3 = sqrt(1.-cosθ3^2); cp3 = cos(ϕ3); sp3 = sin(ϕ3);
+        ct3 = cosθ3; st3 = sqrt(1.0-cosθ3^2); cp3 = cos(ϕ3); sp3 = sin(ϕ3);
         # Rz(phi23) * Ry(theta23) * p3_boost
         n1_rot = [n1[1],
                   cp3*ct3* n1[2] + sp3*ct3* n1[3] + (-st3)* n1[4],

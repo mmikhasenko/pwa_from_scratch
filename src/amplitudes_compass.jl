@@ -22,10 +22,10 @@ export mπ, mπ2
 
 const BlttWskpf = [z->z/(1+z),
                    z->z^2/(9+3z+z^2),
-                   z->z*z*z/(z*z*z+6.*z*z+45.*z+225.),
-                   z->z*z*z*z/(z*z*z*z+10.*z*z*z+135.*z*z+1575.*z+11025.),
-                   z->z*z*z*z*z/(z*z*z*z*z+15.*z*z*z*z+315.*z*z*z+6300.*z*z+99225.*z+893025.),
-                   z->z*z*z*z*z*z/(z*z*z*z*z*z+21.*z*z*z*z*z+630.*z*z*z*z+18900.*z*z*z+496125.*z*z+9823275.*z+108056025.)];
+                   z->z*z*z/(z*z*z+6z*z+45z+225),
+                   z->z*z*z*z/(z*z*z*z+10z*z*z+135z*z+1575z+11025),
+                   z->z*z*z*z*z/(z*z*z*z*z+15z*z*z*z+315z*z*z+6300z*z+99225z+893025),
+                   z->z*z*z*z*z*z/(z*z*z*z*z*z+21z*z*z*z*z+630z*z*z*z+18900z*z*z+496125z*z+9823275z+108056025)];
 
 ################### SIGMA #################
 # AMP Table 1, M solution: f_2^2
