@@ -9,10 +9,10 @@ using ForwardDiff
 
 function createLLHandGRAD(PsiDT, form, block_masks)
 
-    Tmap = get_parameter_map(block_masks)
+    Tmap = get_parameter_map(block_masks,size(PsiDT,2))
     Np = size(Tmap,2)
 
-    pblocks = make_pblock_masks(block_masks)
+    pblocks = make_pblock_inds(block_masks)
 
     BM = real.(contract_to_intensity(form,block_masks));
 
