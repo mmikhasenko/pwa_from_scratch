@@ -1,15 +1,18 @@
 module amplitudes_compass
 # using masses: mπ, mπ2
-using QuadGK
+using QuadGK  # needed for waves notmalization
+using DelimitedFiles
 using DalitzPlotAnalysis: λ, change_basis, Z, WignerDϵ, WignerD, Wignerd, ClebschGordon
 
 export swap_kin_parameters
 export fρ, ff2, fρ3, fσ, ff0_980, ff0_1500, BlttWskpf
-export COMPASS_wave
+export compass_jmels_basis_psi
+# export COMPASS_wave
 #, COMPASS_waves, COMPASS_wave_short
-export wavenames, wavesfile, Nwaves, thresholds_filter
+# export wavenames, wavesfile, Nwaves, thresholds_filter
+export get_wavelist, get_wavenames, get_wavebasis
 
-export buildbasis
+# export buildbasis
 
 const mπ = 0.13956755; const mπ2 = mπ^2;
 const mK = 0.493677; const mK2 = mK^2;
@@ -124,67 +127,94 @@ isobarsS = [fσ,ff0_980,ff0_1500]
 
 # pwd()
 
-basis = []
-wavenames = []
-Nwaves = 0
-wavesfile = []
+# basis = []
+# wavenames = []
+# Nwaves = 0
+# wavesfile = []
 
 # constract COMPASS basis
-function buildbasis(path_to_wavelist; path_to_thresholds="", M3pi=3.0)
 
+function get_wavelist(path_to_wavelist; path_to_thresholds="", M3pi=3.0)
     (! isfile(path_to_wavelist)) && error("Cannot find $(path_to_wavelist)!")
 
     wavesInFile = readdlm(path_to_wavelist)
 
-    global thresholds = fill(0.0,size(wavesInFile,1))
-    let path = path_to_thresholds
-        if isfile(path) && size(wavesInFile,1)==88
-            v = readdlm(path)
-            for i in 1:size(v,1)
-                global thresholds[Int64(v[i,1])] = v[i,2]
-            end
-        else
-            warn("Do not consider thresholds!")
+    thresholds = fill(0.0,size(wavesInFile,1))
+    if isfile(path_to_thresholds)
+        thf = readdlm(path_to_thresholds)
+        for v in zip(thf[:,1],thf[:,2])
+            thresholds[Int64(v[1])] = v[2]
         end
+    else
+        warn("Do not consider thresholds!")
     end
-    global thresholds_filter = thresholds .< M3pi
-    global wavesfile = wavesInFile[thresholds_filter,:]
-    global Nwaves = size(wavesfile,1)
-    global basis = []
-    global wavenames = []
+    thresholds_filter = thresholds .< M3pi
+    wavesfile = wavesInFile[thresholds_filter,:]
 
-    for i in 1:Nwaves
+    return wavesfile
+end
+
+function get_wavenames(wavelist::Array)
+    return vcat(wavelist[:,2]...)::Vector{SubString{String}}
+end
+
+function get_wavenames(path_to_wavelist; path_to_thresholds="", M3pi=3.0)
+    wavelist = get_wavelist(path_to_wavelist; path_to_thresholds=path_to_thresholds, M3pi=M3pi);
+    get_wavenames(wavelist)
+end
+
+function get_wavebasis(wavelist::Array)
+    basis = []
+    for i in 1:size(wavelist,1)
+        wl = wavelist[i,:]
         # special case
-        if wavesfile[i,2] == "FLAT"
-            flat(σ1,cosθ1,ϕ1,cosθ23,ϕ23,m1sq,m2sq,m3sq,s) = 1.0+0.0im
+        if wl[2] == "FLAT"
+            flat(σ1,cosθ1,ϕ1,cosθ23,ϕ23,s) = 1.0+0.0im
             push!(basis,flat)
-            push!(wavenames,"flat")
             continue
         end
         # special case
-        wn, name, J, P, M, ϵ, S, L = wavesfile[i,:]
+        wn, name, J, P, M, ϵ, S, L = wl
         fi = (S ≥ 0) ? isobarsV[S+1] : isobarsS[1-S]
         S = (S≥0 ? S : 0)
-        @eval function $(Symbol("wave_$(wn)"))(σ1,cosθ1,ϕ1,cosθ23,ϕ23,m1sq,m2sq,m3sq,s)
-            τ1 = [cosθ1,ϕ1,cosθ23,ϕ23]
-            τ3 = Vector{Float64}(4)
-            σ3,τ3[1],τ3[2],τ3[3],τ3[4] = change_basis(σ1,τ1...,m1sq,m2sq,m3sq,s)
-            # τ1[3] *= -1; τ1[4] += π
-            τ1[3] *= -1; τ1[4] += π  # compass `convension` (inconsistent, btw)
-            R = 1/0.2024; #it was 5
-            (abs(τ3[1]) ≈ 1.0) && (τ3[1] = sign(τ3[1])*1.0);
-            (abs(τ3[3]) ≈ 1.0) && (τ3[3] = sign(τ3[3])*1.0);
-            (abs(τ3[1]) > 1.0 || abs(τ3[3]) > 1.0) && error("Something is wrong! (abs($(τ3[1])) > 1.0 || abs($(τ3[3]) > 1.0)")
-            bw1 = ($L == 0) ? 1.0 : BlttWskpf[$L]($λ(s,σ1,m1sq)/(4s)*R^2)
-            bw3 = ($L == 0) ? 1.0 : BlttWskpf[$L]($λ(s,σ3,m3sq)/(4s)*R^2)
-            return Z($J,$M,($P==$ϵ),$L,$S,τ1...)*$(fi)(σ1)*sqrt(bw1) +
-                Z($J,$M,($P==$ϵ),$L,$S,τ3...)*$(fi)(σ3)*sqrt(bw3)
-        end
-        push!(wavenames,name)
-        @eval push!(basis, $(Symbol("wave_$(wn)")))
+        push!(basis, get_compass_jmels_basis_psi(J,M,1*(P==ϵ),L,S))
     end
+    return basis
 end
 
+function get_compass_jmels_basis_psi(J,M,Pϵ,L,S)
+    function wave(σ1,cosθ1,ϕ1,cosθ23,ϕ23,s)
+        compass_jmels_basis_psi(QNs=(J,M,Pϵ,L,S),
+                                τ1=(σ1,cosθ1,ϕ1,cosθ23,ϕ23),
+                                s=s)
+    end
+    return wave
+end
+
+function compass_jmels_basis_psi(;QNs::NTuple{5,Int}=error("give quantum numbers for the wave (J,M,Pϵ,L,S)"),
+                                   τ1::NTuple{5,Float64}=error("give kinematic variables (σ1,cosθ1,ϕ1,cosθ23,ϕ23)"),
+                                   s::Float64=error("give s=M3π^2"))
+    J,M,Pϵ,L,S = QNs
+    m1sq, m2sq, m3sq = fill(mπ2,3)
+    ###############
+    fi = (S ≥ 0) ? isobarsV[S+1] : isobarsS[1-S]
+    S = (S ≥ 0 ? S : 0)
+    ###############
+    τ3 = change_basis(τ1...,mπ2,mπ2,mπ2,s)
+    (abs(τ3[2]) ≈ 1.0) && (τ3[2] = sign(τ3[1])*1.0);
+    (abs(τ3[4]) ≈ 1.0) && (τ3[4] = sign(τ3[3])*1.0);
+    (abs(τ3[2]) > 1.0 || abs(τ3[4]) > 1.0) && error("Something is wrong! (abs($(τ3[1])) > 1.0 || abs($(τ3[3]) > 1.0)")
+    #############
+    σ1 = τ1[1]
+    σ3 = τ3[1]
+    R = 1/0.2024;
+    bw1 = (L == 0) ? 1.0 : BlttWskpf[L](λ(s,σ1,m1sq)/(4s)*R^2)
+    bw3 = (L == 0) ? 1.0 : BlttWskpf[L](λ(s,σ3,m3sq)/(4s)*R^2)
+    #############
+    τ1_rev = collect(τ1); τ1_rev[4] *= -1; τ1_rev[5] += π  # compass `convension` (inconsistent, btw)
+    return Z(QNs...,τ1_rev[2:end]...)*fi(σ1)*sqrt(bw1) +
+           Z(QNs...,τ3[2:end]...    )*fi(σ3)*sqrt(bw3)
+end
 
 #############################################################################
 #############################################################################
@@ -229,13 +259,12 @@ end
 #     @eval push!(short_basis, $(Symbol("wave_$(wn)")))
 # end
 
-
-function COMPASS_wave(i,s::Float64,σ1::Float64,
-    cosθ1::Float64,ϕ1::Float64,cosθ23::Float64,ϕ23::Float64)
-    (i <  1) && return 0;
-    (i > Nwaves) && return 0;
-    basis[i](σ1,cosθ1,ϕ1,cosθ23,ϕ23,mπ2,mπ2,mπ2,s)
-end
+# function COMPASS_wave(i,s::Float64,σ1::Float64,
+#     cosθ1::Float64,ϕ1::Float64,cosθ23::Float64,ϕ23::Float64)
+#     (i <  1) && return 0;
+#     (i > Nwaves) && return 0;
+#     basis[i](σ1,cosθ1,ϕ1,cosθ23,ϕ23,mπ2,mπ2,mπ2,s)
+# end
 
 # function COMPASS_wave_short(i,lm,s::Float64,σ1::Float64,cosθ23::Float64)
 #     (i <  1) && return 0;
