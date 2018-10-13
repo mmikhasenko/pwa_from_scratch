@@ -52,7 +52,7 @@ function get_parameter_map(block_masks)
         push!(temp,false,[true for i=1:(sum(bl)-1)]...);
         push!(numb,collect(1:Nw)[bl]...)
     end
-    Tmap = fill(0,2,sum(temp+1))
+    Tmap = fill(0,2,sum(temp .+ 1))
     count=1
     for (i,b) in enumerate(temp)
         Tmap[1,count] = numb[i]
