@@ -211,9 +211,9 @@ function compass_jmels_basis_psi(;QNs::NTuple{5,Int}=error("give quantum numbers
     bw1 = (L == 0) ? 1.0 : BlttWskpf[L](λ(s,σ1,m1sq)/(4s)*R^2)
     bw3 = (L == 0) ? 1.0 : BlttWskpf[L](λ(s,σ3,m3sq)/(4s)*R^2)
     #############
-    τ1_rev = collect(τ1); τ1_rev[4] *= -1; τ1_rev[5] += π  # compass `convension` (inconsistent, btw)
-    return Z(QNs...,τ1_rev[2:end]...)*fi(σ1)*sqrt(bw1) +
-           Z(QNs...,τ3[2:end]...    )*fi(σ3)*sqrt(bw3)
+    # τ1_rev = collect(τ1); τ1_rev[4] *= -1; τ1_rev[5] += π  # compass `convension` (inconsistent, btw)
+    return Z(QNs...,τ1[2],τ1[3],-τ1[4],τ1[5]+π)*fi(σ1)*sqrt(bw1) +
+           Z(QNs...,τ3[2],τ3[3], τ3[4],τ3[5])*fi(σ3)*sqrt(bw3)
 end
 
 #############################################################################

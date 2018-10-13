@@ -10,7 +10,7 @@ using PWAHelper
 using SDMHelper
 using FittingPWALikelihood
 
-mass_bin_name = "2300_2320"# "1540_1560"
+mass_bin_name = "2320_2340"# "1540_1560"
 # set names
 for app in ["rd", "mc", "fu"]
     @eval $(Symbol("kinvar_"*app)) = joinpath("data","variables_$(mass_bin_name)_t1_"*$app*".txt")
@@ -40,11 +40,15 @@ Nwaves = size(wavelist,1)
 wavenames = get_wavenames(wavelist)
 wavebasis = get_wavebasis(wavelist)
 
-@profiler for i=1:100
+@time for i=1:10000
     compass_jmels_basis_psi(QNs=(1,0,1*true,0,1),τ1=(1.1,rand(),rand(),rand(),rand()),s=1.5)
 end
 
-precalculate_compass_basis(wavebasis, kinvar_rd, basisfunc_rd)
+@profiler for i=1:10000
+    compass_jmels_basis_psi(QNs=(1,0,1*true,0,1),τ1=(1.1,rand(),rand(),rand(),rand()),s=1.5)
+end
+
+@time precalculate_compass_basis(wavebasis, kinvar_rd, basisfunc_rd)
 @time precalculate_compass_basis(wavebasis, kinvar_mc, basisfunc_mc)
 @time precalculate_compass_basis(wavebasis, kinvar_fu, basisfunc_fu)
 

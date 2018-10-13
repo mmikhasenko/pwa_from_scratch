@@ -2,30 +2,31 @@ module DalitzPlotAnalysis
 export ClebschGordon, Wignerd, WignerDϵ, Z, λ
 export change_basis, cross_basis_cosθ3, cross_basis_cosθ12, cross_basis_s3
 
-import Base: Math.atan2
+# import Base: Math.atan2
+using LinearAlgebra
 
 import GSL: sf_coupling_3j
 
-"""
-    atan2(y::Complex{Float64}, x::Complex{Float64})
-The function calculates `atan` for a complex argument. The standard atan(y/x)
-    is either corrected by +pi or returned.
-
-    θ=2+0.1im
-    println("sin: ", cos(θ))
-    println("rec: ", cos(atan(tan(θ))))
-    println("+pi: ", cos(π+atan(tan(θ))))
-    println("at2: ", cos(atan2(sin(θ),cos(θ))))
-    println("sin: ", sin(θ))
-    println("rec: ", sin(atan(tan(θ))))
-    println("+pi: ", sin(π+atan(tan(θ))))
-    println("at2: ", sin(atan2(sin(θ),cos(θ))))
-"""
-function atan2(y::Complex{Float64}, x::Complex{Float64})
-    val = atan(y/x);
-    cosval = cos(val)
-    return (real(cosval)*real(x) > 0) ? val : val+π;
-end
+# """
+#     atan2(y::Complex{Float64}, x::Complex{Float64})
+# The function calculates `atan` for a complex argument. The standard atan(y/x)
+#     is either corrected by +pi or returned.
+#
+#     θ=2+0.1im
+#     println("sin: ", cos(θ))
+#     println("rec: ", cos(atan(tan(θ))))
+#     println("+pi: ", cos(π+atan(tan(θ))))
+#     println("at2: ", cos(atan2(sin(θ),cos(θ))))
+#     println("sin: ", sin(θ))
+#     println("rec: ", sin(atan(tan(θ))))
+#     println("+pi: ", sin(π+atan(tan(θ))))
+#     println("at2: ", sin(atan2(sin(θ),cos(θ))))
+# """
+# function atan2(y::Complex{Float64}, x::Complex{Float64})
+#     val = atan(y/x);
+#     cosval = cos(val)
+#     return (real(cosval)*real(x) > 0) ? val : val+π;
+# end
 
 """
     λ(x,y,z)
@@ -137,8 +138,8 @@ for tp in [:Float64, :(Complex{Float64})]
                   sp1*ct1* p3_b[2] +   cp1 * p3_b[3] + sp1*st1* p3_b[4],
                      -st1* p3_b[2] +   0.0 * p3_b[3] +     ct1* p3_b[4]];
 
-        cosθ3 = -p3_rot[4]/sqrt(p3_b[2]^2+p3_b[3]^2+p3_b[4]^2);
-        ϕ3 = (p3_rot[2] != zero(p3_rot[2])) ? atan2(-p3_rot[3], -p3_rot[2]) : rand()*one(p3_rot[2]);
+        cosθ3 = -p3_rot[4]/norm(p3_b[2:end]);
+        ϕ3 = atan(-p3_rot[3], -p3_rot[2])  # (p3_rot[2] != zero(p3_rot[2])) ? atan2(-p3_rot[3], -p3_rot[2]) : rand()*one(p3_rot[2]);
 
         cosθ12_n = m2sq + m3sq + 2* (s3+m2sq-m1sq)/(2*sqrt(s3)) * (s-m3sq-s3)/(2*sqrt(s3)) - s1;
         cosθ12_d = (2 * sqrt(λ(s3, m1sq, m2sq)/(4*(s3))) * sqrt(λ(s, m3sq, s3)/(4*(s3))) );
@@ -150,12 +151,12 @@ for tp in [:Float64, :(Complex{Float64})]
              -cosθ1];
         ct3 = cosθ3; st3 = sqrt(1.0-cosθ3^2); cp3 = cos(ϕ3); sp3 = sin(ϕ3);
         # Rz(phi23) * Ry(theta23) * p3_boost
-        n1_rot = [n1[1],
+        n1_rot = [0.0,#n1[1],
                   cp3*ct3* n1[2] + sp3*ct3* n1[3] + (-st3)* n1[4],
                    (-sp3)* n1[2] +    cp3 * n1[3] +   0.0 * n1[4],
-                  cp3*st3* n1[2] + sp3*st3* n1[3] +   ct3 * n1[4]];
+                  0.0]#cp3*st3* n1[2] + sp3*st3* n1[3] +   ct3 * n1[4]];
         # println(n1_rot[3], " ", n1_rot[2])
-        ϕ12 = (n1_rot[2] != zero(n1_rot[2])) ? atan2(n1_rot[3], n1_rot[2]) : rand()*one(n1_rot[2]);
+        ϕ12 = atan(n1_rot[3], n1_rot[2])  # (n1_rot[2] != zero(n1_rot[2])) ? atan2(n1_rot[3], n1_rot[2]) : rand()*one(n1_rot[2]);
         return (s3,cosθ3,ϕ3,cosθ12,ϕ12)
     end
 end
