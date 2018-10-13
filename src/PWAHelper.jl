@@ -27,12 +27,12 @@ export normalize_pars!
 #     ld["real"]+1im*ld["imag"]
 # end
 
-function precalculate_compass_basis(fin,fout)
+function precalculate_compass_basis(basis,fin,fout)
     mm = readdlm(fin); Nd = size(mm,1)
-    m2 = fill(0.0im, Nd, Nwaves)
+    m2 = fill(0.0im, Nd, length(basis))
     @progress for e in 1:Nd
-        for i in 1:Nwaves
-            m2[e,i] = COMPASS_wave(i,mm[e,:]...);
+        for (i,b) in enumerate(basis)
+            m2[e,i] = b(mm[e,2:end]..., mm[e,1]);
         end
     end
     writedlm(fout,[real(m2) imag(m2)])

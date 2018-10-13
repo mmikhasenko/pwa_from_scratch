@@ -156,7 +156,7 @@ for tp in [:Float64, :(Complex{Float64})]
                   cp3*st3* n1[2] + sp3*st3* n1[3] +   ct3 * n1[4]];
         # println(n1_rot[3], " ", n1_rot[2])
         ϕ12 = (n1_rot[2] != zero(n1_rot[2])) ? atan2(n1_rot[3], n1_rot[2]) : rand()*one(n1_rot[2]);
-        return s3,cosθ3,ϕ3,cosθ12,ϕ12
+        return (s3,cosθ3,ϕ3,cosθ12,ϕ12)
     end
 end
 
@@ -205,7 +205,7 @@ end
 # WignerD
 WignerD(aj, am, an, α, β, γ) = Wignerd(aj,am,an,β)*cis(-(am*α+an*γ))
 # WignerDϵ
-function WignerDϵ(ϵP::Bool,aj::Int64, am::Int64, an::Int64, α, β, γ)
+function WignerDϵ(ϵP,aj, am, an, α, β, γ)
     (am < zero(am)) && return 0.0im;
     WDMp = WignerD(aj,am,an,α,β,γ)
     WDMm = (am == 0) ? WDMp : WignerD(aj,-am,an,α, β, γ);
@@ -242,7 +242,7 @@ end
 #     Wignerd(j,m1,m2,cosθ)*cis(-m1*ϕ)
 # end
 
-function Z(J::Int64,M::Int64,L::Int64,l::Int64,cosθ1,ϕ1,cosθ23,ϕ23)
+function Z(J,M,L,l,cosθ1,ϕ1,cosθ23,ϕ23)
     rng_lm = min(l,J);
     θ1 = acos(cosθ1)
     θ23 = acos(cosθ23)
@@ -252,7 +252,15 @@ function Z(J::Int64,M::Int64,L::Int64,l::Int64,cosθ1,ϕ1,cosθ23,ϕ23)
 end
 
 
-function Z(J::Int64,M::Int64,ϵP::Bool,L::Int64,l::Int64,cosθ1,ϕ1,cosθ23,ϕ23)
+# function Z(J::Int64,M::Int64,ϵP::Bool,L::Int64,l::Int64,cosθ1,ϕ1,cosθ23,ϕ23)
+#     rng_lm = min(l,J);
+#     θ1 = acos(cosθ1)
+#     θ23 = acos(cosθ23)
+#     res = sum(ClebschGordon(2*L,0,2*l,2*lm,2*J,2*lm)*sqrt((2*L+1)*(2*l+1))*
+#         WignerDϵ(ϵP,J,M,lm,ϕ1,θ1,0.0)*WignerD(l,lm,0,ϕ23,θ23,0.0) for lm=-rng_lm:1:rng_lm)
+#     return conj(res)
+# end
+function Z(J,M,ϵP,L,l,cosθ1,ϕ1,cosθ23,ϕ23)
     rng_lm = min(l,J);
     θ1 = acos(cosθ1)
     θ23 = acos(cosθ23)

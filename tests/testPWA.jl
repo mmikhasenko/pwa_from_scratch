@@ -1,16 +1,17 @@
 using Plots
 theme(:default)
 
-push!(LOAD_PATH,"src")
+using DelimitedFiles
 
+push!(LOAD_PATH,"src")
 using DalitzPlotAnalysis
 using amplitudes_compass
 using PWAHelper
 using SDMHelper
 using FittingPWALikelihood
 
-mass_bin_name = "1540_1560"# "1540_1560"
-
+mass_bin_name = "2300_2320"# "1540_1560"
+# set names
 for app in ["rd", "mc", "fu"]
     @eval $(Symbol("kinvar_"*app)) = joinpath("data","variables_$(mass_bin_name)_t1_"*$app*".txt")
     @eval $(Symbol("basisfunc_"*app)) = joinpath("data","functions_$(mass_bin_name)_t1_"*$app*".txt")
@@ -28,12 +29,26 @@ end
 
 ################################
 
-buildbasis(joinpath(pwd(),"src/wavelist_formated.txt"); M3pi=parse(mass_bin_name[1:4])/1000,
-    path_to_thresholds=joinpath(pwd(),"src/thresholds_formated.txt"))
+# buildbasis(joinpath(pwd(),"src/wavelist_formated.txt"); M3pi=parse(mass_bin_name[1:4])/1000,
+#     path_to_thresholds=joinpath(pwd(),"src/thresholds_formated.txt"))
+wavelist = get_wavelist(joinpath(pwd(),"src/wavelist_formated.txt");
+    path_to_thresholds=joinpath(pwd(),"src/thresholds_formated.txt"),
+    M3pi=parse(mass_bin_name[1:4])/1000)
 
-@time precalculate_compass_basis(kinvar_rd, basisfunc_rd)
-@time precalculate_compass_basis(kinvar_mc, basisfunc_mc)
-@time precalculate_compass_basis(kinvar_fu, basisfunc_fu)
+Nwaves = size(wavelist,1)
+
+wavenames = get_wavenames(wavelist)
+wavebasis = get_wavebasis(wavelist)
+
+@profiler for i=1:100
+    compass_jmels_basis_psi(QNs=(1,0,1*true,0,1),τ1=(1.1,rand(),rand(),rand(),rand()),s=1.5)
+end
+
+precalculate_compass_basis(wavebasis, kinvar_rd, basisfunc_rd)
+@time precalculate_compass_basis(wavebasis, kinvar_mc, basisfunc_mc)
+@time precalculate_compass_basis(wavebasis, kinvar_fu, basisfunc_fu)
+
+isfile("src/wavelist_formated.txt")
 
 @time const PsiMC = read_precalc_basis(basisfunc_mc);
 
