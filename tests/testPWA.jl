@@ -40,19 +40,9 @@ Nwaves = size(wavelist,1)
 wavenames = get_wavenames(wavelist)
 wavebasis = get_wavebasis(wavelist)
 
-@time for i=1:10000
-    compass_jmels_basis_psi(QNs=(1,0,1*true,0,1),τ1=(1.1,rand(),rand(),rand(),rand()),s=1.5)
-end
-
-@profiler for i=1:10000
-    compass_jmels_basis_psi(QNs=(1,0,1*true,0,1),τ1=(1.1,rand(),rand(),rand(),rand()),s=1.5)
-end
-
 @time precalculate_compass_basis(wavebasis, kinvar_rd, basisfunc_rd)
 @time precalculate_compass_basis(wavebasis, kinvar_mc, basisfunc_mc)
 @time precalculate_compass_basis(wavebasis, kinvar_fu, basisfunc_fu)
-
-isfile("src/wavelist_formated.txt")
 
 @time const PsiMC = read_precalc_basis(basisfunc_mc);
 
@@ -62,7 +52,7 @@ isfile("src/wavelist_formated.txt")
     v
 end
 write_SDM(BmatMC, "BmatMC_$(mass_bin_name).txt")
-BmatMC = read_SDM("BmatMC_$(mass_bin_name).txt")
+BmatMC = read_SDM("BmatMC_$(mass_bin_name).txt");
 
 # 10.593515 seconds (101.00 k allocations: 4.752 MiB)
 
@@ -70,12 +60,12 @@ let BmatMC_n = [BmatMC[i,j]/sqrt(BmatMC[i,i]*BmatMC[j,j]) for i=1:Nwaves, j=1:Nw
     heatmap(real(BmatMC_n))
 end
 
-const noϵ = [i==1 for i=1:size(wavesfile[:,6],1)]
-const posϵ = [ϵ=="+" for ϵ in wavesfile[:,6]]
-const negϵ = [ϵ=="-" for ϵ in wavesfile[:,6]]
+const noϵ =  [i==1 for i=1:size(wavelist[:,6],1)]
+const posϵ = [ϵ=="+" for ϵ in wavelist[:,6]]
+const negϵ = [ϵ=="-" for ϵ in wavelist[:,6]]
 
-const ModelBlocks = [noϵ, posϵ, negϵ, negϵ]
-const Npar = size(get_parameter_map(ModelBlocks),2)
+const ModelBlocks = [collect(1:Nwaves)[b] for b in [noϵ, posϵ, negϵ, negϵ]]
+const Npar = size(get_parameter_map(ModelBlocks, Nwaves),2)
 
 const PsiRD = read_precalc_basis(basisfunc_rd);
 
@@ -92,7 +82,7 @@ end
 minpars0 = vcat(readdlm("minpars_compass_$(mass_bin_name).txt")...)[1:Npar];
 # start nice algorithm which goes directly to the minimum
 @time minpars = minimize(LLH, LLH_and_GRAD!;
-    algorithm = :LD_LBFGS, verbose=1, starting_pars=minpars0)
+    algorithm = :LD_LBFGS, verbose=1, starting_pars=test_t)
 # start more precise algorithm
 @time minpars = minimize(LLH, LLH_and_GRAD!;
     algorithm = :LD_SLSQP, verbose=1, starting_pars=minpars)
@@ -154,7 +144,7 @@ histogram(minimaLLH.-LLH(minpars0), bins=linspace(-2,5,10))
 
 @time weights = let mpars = minpars,
     Tmap = get_parameter_map(ModelBlocks),
-    pblocks = make_pblock_masks(ModelBlocks)
+    pblocks = make_pblock_inds(ModelBlocks)
         [cohsq(extnd(PsiMC[i,:],Tmap).*mpars,pblocks) for i in 1:size(PsiMC,1)];
 end;
 

@@ -9,14 +9,13 @@ using ForwardDiff
 
 function createLLHandGRAD(PsiDT, form, block_masks)
 
-    Tmap = get_parameter_map(block_masks)
-    Np = size(Tmap,2)
+    Nd, Nwaves = size(PsiDT);
 
-    pblocks = make_pblock_masks(block_masks)
-
+    Tmap = get_parameter_map(block_masks,Nwaves)
+    pblocks = make_pblock_inds(block_masks)
     BM = real.(contract_to_intensity(form,block_masks));
 
-    Nd = size(PsiDT,1);
+    Np = size(Tmap,2)
 
     COHTS(X) = cohts(X,pblocks)
     COHSQ(X) = cohsq(X,pblocks)
@@ -110,7 +109,7 @@ function minimize(minusLogLikelihood, andDerive!;
     min_objective!(opt, to_minimize)
 
     (minf,pars,ret) = optimize(opt, starting_pars)#rand(size(TT,2)))
-    println("got $minf at $pars = [m, Γ] after some iterations (returned $ret)")
+    println("got $minf at $pars after some iterations (returned $ret)")
 
     pars
 end
