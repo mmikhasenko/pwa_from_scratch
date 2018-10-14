@@ -25,4 +25,4 @@ end
 
 println("3. save the result")
 write_cmatrix(BmatMC,
-    joinpath(path_to_working_folder,"intergmat_$(mass_bin_name)_$(tslice)_mc.txt"))
+    joinpath(path_to_working_folder,"integrmat_$(mass_bin_name)_$(tslice)_mc.txt"))
