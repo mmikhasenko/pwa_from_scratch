@@ -52,7 +52,7 @@ function _fσ(s::Number)
         M00 += scale^(i-1) *_c[i];
     end
 
-  return 1./(M00 - 1im*rho00);
+  return 1.0/(M00 - 1im*rho00);
 end
 
 
@@ -62,7 +62,7 @@ function _ff0_980(s::Number)
     rK = 4.21;
     qsq = λ(s,mπ2,mπ2)/(4*s);
     qsqK = λ(s,mK2,mK2)/(4*s);
-    return 1./(m*m-s-2.0im*(sqrt(qsq)*gPi+sqrt(convert(Complex{Float64},qsqK))*gPi*rK)/sqrt(s));
+    return 1.0/(m*m-s-2.0im*(sqrt(qsq)*gPi+sqrt(convert(Complex{Float64},qsqK))*gPi*rK)/sqrt(s));
 end
 
 function _ff0_1500(s::Number)
@@ -81,7 +81,7 @@ function _fρ(s::Number)
     ρ0 = 1/(8*π)*2*p0/mρ
     # extra factor due to the spin of ρ
     R = 4.94 # it was 5
-    ff = p^2/p0^2*(1./R^2+p0^2)/(1./R^2+p^2)
+    ff = p^2/p0^2*(1.0/R^2+p0^2)/(1.0/R^2+p^2)
     mΓ = mρ*Γρ*p/p0*ff  #changed from ρ/ρ0 to p/p0
     return sqrt(ff)/(mρ^2-s -1.0im*mΓ) #
 end
