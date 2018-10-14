@@ -2,15 +2,16 @@ module PWAHelper
 
 using amplitudes_compass
 
-# using JLD
+using DelimitedFiles
 using Juno
 
 export precalculate_compass_basis, read_precalc_basis
 # export precalculate_compass_basis_txt, read_precalc_basis_txt
+export get_npars
 export get_parameter_map, make_pblock_inds
 export extnd, shrnk, cohsq, cohts
 export contract_to_intensity, get_intesity
-export normalize_pars!
+export get_parameter_ranges, normalize_pars!
 
 function precalculate_compass_basis(basis,fin,fout)
     mm = readdlm(fin); Nd = size(mm,1)
@@ -46,6 +47,10 @@ function get_parameter_map(block_inds, Nw)
         end
     end
     Tmap
+end
+
+function get_npars(block_inds)
+    sum(2*length(bl)-1 for bl in block_inds)
 end
 
 function make_pblock_inds(block_inds)
@@ -104,6 +109,14 @@ function get_intesity(pars, form, block_inds)
     BM = real.(contract_to_intensity(form,block_inds))
     Np = length(pars)
     sum(pars[i]*BM[i,j]*pars[j] for i=1:Np, j=1:Np)
+end
+
+function get_parameter_ranges(form, block_inds)
+    Np = get_npars(block_inds)
+    [let p = fill(0.0, Np)
+        p[i] = 1.0
+        1/sqrt(get_intesity(p, form, block_inds))
+     end for i in 1:Np]
 end
 
 function normalize_pars!(pars, form, block_inds)

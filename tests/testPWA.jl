@@ -54,8 +54,6 @@ end
 write_SDM(BmatMC, "BmatMC_$(mass_bin_name).txt")
 BmatMC = read_SDM("BmatMC_$(mass_bin_name).txt");
 
-# 10.593515 seconds (101.00 k allocations: 4.752 MiB)
-
 let BmatMC_n = [BmatMC[i,j]/sqrt(BmatMC[i,i]*BmatMC[j,j]) for i=1:Nwaves, j=1:Nwaves];
     heatmap(real(BmatMC_n))
 end
@@ -71,18 +69,23 @@ const PsiRD = read_precalc_basis(basisfunc_rd);
 
 LLH, GRAD, LLH_and_GRAD!, HES = createLLHandGRAD(PsiRD, BmatMC, ModelBlocks);
 
-test_t = rand(Npar)
-@time @show LLH(test_t)
-@time @show LLH(test_t)
+pars0 = rand(Npar);
+pars0 .*= get_parameter_ranges(BmatMC, ModelBlocks)
+normalize_pars!(pars0, BmatMC, ModelBlocks)
 
-let scale = get_intesity(test_t, BmatMC, ModelBlocks)
-    get_intesity(test_t ./ sqrt(scale), BmatMC, ModelBlocks)
+@time @show LLH(pars0)
+@time @show LLH(pars0)
+
+@profiler LLH(pars0)
+
+let scale = get_intesity(pars0, BmatMC, ModelBlocks)
+    get_intesity(pars0 ./ sqrt(scale), BmatMC, ModelBlocks)
 end
 
 minpars0 = vcat(readdlm("minpars_compass_$(mass_bin_name).txt")...)[1:Npar];
 # start nice algorithm which goes directly to the minimum
 @time minpars = minimize(LLH, LLH_and_GRAD!;
-    algorithm = :LD_LBFGS, verbose=1, starting_pars=test_t)
+    algorithm = :LD_LBFGS, verbose=1, starting_pars=pars0)
 # start more precise algorithm
 @time minpars = minimize(LLH, LLH_and_GRAD!;
     algorithm = :LD_SLSQP, verbose=1, starting_pars=minpars)

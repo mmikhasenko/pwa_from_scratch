@@ -1,9 +1,10 @@
 module SDMHelper
 
+using DelimitedFiles
 using PWAHelper
 
 export SDM_to_pars, pars_to_SDM
-export write_SDM, read_SDM
+export write_cmatrix, read_cmatrix
 export constract_values
 
 function pars_to_SDM(pars, Bmat, block_masks)
@@ -40,11 +41,11 @@ function SDM_to_pars(SDM, Bmat, block_masks)
     return fpars
 end
 
-function write_SDM(sdm, fout)
+function write_cmatrix(sdm, fout)
     writedlm(fout, [real(sdm) imag(sdm)])
 end
 
-function read_SDM(fin)
+function read_cmatrix(fin)
     ld = readdlm(fin)
     Nh = div(size(ld,2),2)
     ld[:,1:Nh] + 1im .* ld[:,(Nh+1):end]
