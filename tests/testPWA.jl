@@ -1,5 +1,6 @@
 using Plots
 theme(:default)
+pyplot()
 
 using DelimitedFiles
 
@@ -11,26 +12,25 @@ using SDMHelper
 using FittingPWALikelihood
 
 mass_bin_name = "2320_2340"# "1540_1560"
+tslice = "t1"
 # set names
 for app in ["rd", "mc", "fu"]
-    @eval $(Symbol("kinvar_"*app)) = joinpath("data","variables_$(mass_bin_name)_t1_"*$app*".txt")
-    @eval $(Symbol("basisfunc_"*app)) = joinpath("data","functions_$(mass_bin_name)_t1_"*$app*".txt")
+    @eval $(Symbol("kinvar_"*app)) = joinpath("data","variables_$(mass_bin_name)_$(tslice)_"*$app*".txt")
+    @eval $(Symbol("basisfunc_"*app)) = joinpath("data","functions_$(mass_bin_name)_$(tslice)_"*$app*".txt")
 end
 
 ##### Converting data data #####
 
-isfile("data/$(mass_bin_name)_rd.root") || error("Cannot find the file")
-isfile("data/$(mass_bin_name)_mc.root") || error("Cannot find the file")
+isfile("data/$(mass_bin_name)_$(tslice)_rd.root") || error("Cannot find the file")
+isfile("data/$(mass_bin_name)_$(tslice)_mc.root") || error("Cannot find the file")
 @time let tmin = "0.1", tmax = "0.112853"
-    run(pipeline(`src/Extract data/$(mass_bin_name)_rd.root D $(tmin) $(tmax)`, stdout=kinvar_rd))
-    run(pipeline(`src/Extract data/$(mass_bin_name)_mc.root M $(tmin) $(tmax)`, stdout=kinvar_mc))
-    run(pipeline(`src/Extract data/$(mass_bin_name)_mc.root F $(tmin) $(tmax)`, stdout=kinvar_fu))
+    run(pipeline(`src/Extract data/$(mass_bin_name)_$(tslice)_rd.root D $(tmin) $(tmax)`, stdout=kinvar_rd))
+    run(pipeline(`src/Extract data/$(mass_bin_name)_$(tslice)_mc.root M $(tmin) $(tmax)`, stdout=kinvar_mc))
+    run(pipeline(`src/Extract data/$(mass_bin_name)_$(tslice)_mc.root F $(tmin) $(tmax)`, stdout=kinvar_fu))
 end
 
 ################################
 
-# buildbasis(joinpath(pwd(),"src/wavelist_formated.txt"); M3pi=parse(mass_bin_name[1:4])/1000,
-#     path_to_thresholds=joinpath(pwd(),"src/thresholds_formated.txt"))
 wavelist = get_wavelist(joinpath(pwd(),"src/wavelist_formated.txt");
     path_to_thresholds=joinpath(pwd(),"src/thresholds_formated.txt"),
     M3pi=parse(mass_bin_name[1:4])/1000)
@@ -58,16 +58,20 @@ let BmatMC_n = [BmatMC[i,j]/sqrt(BmatMC[i,i]*BmatMC[j,j]) for i=1:Nwaves, j=1:Nw
     heatmap(real(BmatMC_n))
 end
 
-const noϵ =  [i==1 for i=1:size(wavelist[:,6],1)]
-const posϵ = [ϵ=="+" for ϵ in wavelist[:,6]]
-const negϵ = [ϵ=="-" for ϵ in wavelist[:,6]]
+const noϵ =  [1] # flat wave
+const posϵ = [i for (i,ϵ) in enumerate(wavelist[:,6]) if ϵ=="+"]
+const negϵ = [i for (i,ϵ) in enumerate(wavelist[:,6]) if ϵ=="-"]
 
-const ModelBlocks = [collect(1:Nwaves)[b] for b in [noϵ, posϵ, negϵ, negϵ]]
-const Npar = size(get_parameter_map(ModelBlocks, Nwaves),2)
+# Model description
+const ModelBlocks = [noϵ, posϵ, negϵ, negϵ]
 
-const PsiRD = read_precalc_basis(basisfunc_rd);
+# load precalculated data array
+const PsiRD = read_precalc_basis(
+    joinpath("data","functions_$(mass_bin_name)_$(tslice)_rd.txt"));
 
 LLH, GRAD, LLH_and_GRAD!, HES = createLLHandGRAD(PsiRD, BmatMC, ModelBlocks);
+
+const Npar = get_npars(ModelBlocks)
 
 pars0 = rand(Npar);
 pars0 .*= get_parameter_ranges(BmatMC, ModelBlocks)
@@ -78,10 +82,6 @@ normalize_pars!(pars0, BmatMC, ModelBlocks)
 
 @profiler LLH(pars0)
 
-let scale = get_intesity(pars0, BmatMC, ModelBlocks)
-    get_intesity(pars0 ./ sqrt(scale), BmatMC, ModelBlocks)
-end
-
 minpars0 = vcat(readdlm("minpars_compass_$(mass_bin_name).txt")...)[1:Npar];
 # start nice algorithm which goes directly to the minimum
 @time minpars = minimize(LLH, LLH_and_GRAD!;
@@ -89,21 +89,20 @@ minpars0 = vcat(readdlm("minpars_compass_$(mass_bin_name).txt")...)[1:Npar];
 # start more precise algorithm
 @time minpars = minimize(LLH, LLH_and_GRAD!;
     algorithm = :LD_SLSQP, verbose=1, starting_pars=minpars)
-writedlm("minpars_compass_$(mass_bin_name).txt", minpars)
+writedlm(joinpath("data","minpars_compass_$(mass_bin_name)_$(tslice).txt"), minpars)
 
 #####################################################################################
 #####################################################################################
 
 @time hes_anal = HES(minpars)
 inv_hes = inv(hes_anal)
+det(hes_anal[1:20,1:20])
 diag(inv_hes)
-
-writedlm("invhes_compass_$(mass_bin_name).txt", inv_hes)
-
 diag_error = sqrt.(diag(inv_hes))
 
-@show wavenames[82]
-plot(abs.(minpars[1:end-26]), yerr = diag_error[1:end-13], ylim=(0,.1))
+writedlm("invhes_compass_$(mass_bin_name)_$(tslice).txt", inv_hes)
+
+plot(abs.(minpars[2:end-26]))
 
 let tog = [[minpars[i],diag_error[i]] for i in 1:(length(minpars)-26)]
     stog = sort(tog, by=x->abs(x[1]), rev=true)
@@ -114,17 +113,6 @@ savefig(joinpath("plots","official_comass_fit_parameters_nonegref.pdf"))
 
 #####################################################################################
 #####################################################################################
-
-intensity_ranges_per_parameter = [begin
-        pars = fill(0.0,Npar)
-        pars[i] = 1.0
-        get_intesity(pars, BmatMC, ModelBlocks)
-    end for i=1:Npar]
-limits = 1./sqrt.(intensity_ranges_per_parameter)
-
-function get_rand_starting_values(limits)
-    return [(2*rand()-1)*l for l in limits]
-end
 
 # start from random points on the contrained surface
 for e in 13:100
@@ -146,7 +134,7 @@ histogram(minimaLLH.-LLH(minpars0), bins=linspace(-2,5,10))
 
 
 @time weights = let mpars = minpars,
-    Tmap = get_parameter_map(ModelBlocks),
+    Tmap = get_parameter_map(ModelBlocks, Nwaves),
     pblocks = make_pblock_inds(ModelBlocks)
         [cohsq(extnd(PsiMC[i,:],Tmap).*mpars,pblocks) for i in 1:size(PsiMC,1)];
 end;
@@ -184,8 +172,8 @@ savefig(joinpath("plots","data_with_errors.pdf"))
     [sum(PsiFU[e,i]'*PsiFU[e,j] for e in 1:size(PsiFU,1))
         for i=1:Nwaves, j=1:Nwaves] /size(PsiMC,1)
 end
-write_SDM(BmatFU, "BmatFU_$(mass_bin_name).txt")
-BmatFU = read_SDM("BmatFU_$(mass_bin_name).txt")
+write_cmatrix(BmatFU, "data/integrmat_$(mass_bin_name)_$(tslice)_fu.txt")
+BmatFU = read_cmatrix("data/integrmat_$(mass_bin_name)_$(tslice)_fu.txt")
 
 SDM = size(PsiRD,1)*pars_to_SDM(minpars, BmatFU, ModelBlocks)
 SDM1 = size(PsiRD,1)*pars_to_SDM(minima[:,1], BmatFU, ModelBlocks)
@@ -284,7 +272,7 @@ end
     path_to_tmp_res = joinpath("data","bootstrap_tmp","SDMs-1540_1560")
     writedlm(joinpath(path_to_tmp_res,"rb-$(b)-sdm.txt"), [real(_sdm) imag(_sdm)])
 end
-SDMs = [read_SDM(joinpath("data","bootstrap_tmp","SDMs_$(mass_bin_name)","rb-$(i)-sdm.txt"))
+SDMs = [read_cmatrix(joinpath("data","bootstrap_tmp","SDMs_$(mass_bin_name)","rb-$(i)-sdm.txt"))
     for i in 1:497]
 
 #####################################################################################
