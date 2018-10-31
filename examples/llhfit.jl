@@ -4,7 +4,6 @@ tslice = "t1"
 path_wavelist = "src"
 path_to_working_folder = "data"
 
-
 ######################################################
 using DelimitedFiles
 push!(LOAD_PATH,"src")
@@ -12,6 +11,10 @@ using SDMHelper
 using FittingPWALikelihood
 using amplitudes_compass
 using PWAHelper
+using Random
+rng = MersenneTwister()
+serial= round(Int,rand(Random.seed!(rng))*100000)
+print(serial)
 
 BmatMC = read_cmatrix(
     joinpath(path_to_working_folder,"integrmat_$(mass_bin_name)_$(tslice)_mc.txt"));
@@ -49,4 +52,4 @@ normalize_pars!(pars0, BmatMC, ModelBlocks)
 @time minpars = minimize(LLH, LLH_and_GRAD!;
     algorithm = :LD_SLSQP, verbose=1, starting_pars=minpars)
 
-writedlm("llhfit_$(mass_bin_name)_$(tslice).txt", minpars)
+writedlm("llhfit_$(mass_bin_name)_$(tslice)_$(serial).txt", minpars)
