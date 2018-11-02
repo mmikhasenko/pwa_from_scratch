@@ -12,10 +12,16 @@ function createLLHandGRAD(PsiDT, form, block_masks)
     Nd, Nwaves = size(PsiDT);
 
     Tmap = get_parameter_map(block_masks,Nwaves)
-    pblocks = make_pblock_inds(block_masks)
-    BM = real.(contract_to_intensity(form,block_masks));
 
     Np = size(Tmap,2)
+
+    pblocks = make_pblock_inds(block_masks)
+    vblocks = [let v = fill(0.0,Np)
+            v[bl] .= 1.0
+            v
+        end for bl in pblocks]
+
+    BM = real.(contract_to_intensity(form,block_masks));
 
     COHTS(X) = cohts(X,pblocks)
     COHSQ(X) = cohsq(X,pblocks)
@@ -37,7 +43,7 @@ function createLLHandGRAD(PsiDT, form, block_masks)
         ExtΨ = EXTND(psi)
         return sum(let v = ExtΨ.*bl
             real.(2*v*v')
-        end for bl in pblocks)
+        end for bl in vblocks)
     end
 
     function HESSIAN(pars)
