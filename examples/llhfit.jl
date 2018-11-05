@@ -49,4 +49,8 @@ normalize_pars!(pars0, BmatMC, ModelBlocks)
 @time minpars = minimize(LLH, LLH_and_GRAD!;
     algorithm = :LD_SLSQP, verbose=1, starting_pars=minpars)
 
-writedlm("llhfit_$(mass_bin_name)_$(tslice).txt", minpars)
+println("Done! Saving...")
+rnd = round(Int,100000*rand())
+writedlm(
+    joinpath(path_to_working_folder,"llhfit_$(mass_bin_name)_$(tslice)_$(rnd).txt"),
+    minpars)
