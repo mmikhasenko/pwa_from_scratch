@@ -14,13 +14,13 @@ export get_wavelist, get_wavenames, get_wavebasis
 
 # export buildbasis
 
-const mπ = 0.13956755; const mπ2 = mπ^2;
-const mK = 0.493677; const mK2 = mK^2;
-const mK0 = 0.497614; const mK02 = mK0^2;
+mπ = 0.13956755; mπ2 = mπ^2;
+mK = 0.493677; mK2 = mK^2;
+mK0 = 0.497614; mK02 = mK0^2;
 
 export mπ, mπ2
 
-const BlttWskpf = [z->z/(1+z),
+BlttWskpf = [z->z/(1+z),
                    z->z^2/(9+3z+z^2),
                    z->z*z*z/(z*z*z+6z*z+45z+225),
                    z->z*z*z*z/(z*z*z*z+10z*z*z+135z*z+1575z+11025),
@@ -31,12 +31,12 @@ const BlttWskpf = [z->z/(1+z),
 # AMP Table 1, M solution: f_2^2
 # AMP Table 1, M solution: f_1^1 and f_2^1
 # Last item is Katchaev modification
-const _a = [0.1131, 0.0]
+_a = [0.1131, 0.0]
 
 # AMP Table 1, M solution: c_11^0
 # last item - Katchaev modification
-const _c = [0.0337, -0.3185, -0.0942, -0.5927, 0.0]
-const _sP = [-0.0074, 0.9828]
+_c = [0.0337, -0.3185, -0.0942, -0.5927, 0.0]
+_sP = [-0.0074, 0.9828]
 
 function _fσ(s::Number)
     (s < 4mπ2) && return 0.0;
@@ -72,7 +72,7 @@ function _ff0_1500(s::Number)
 end
 
 function _fρ(s::Number)
-    const mρ = 0.7685; const Γρ = 0.1507;
+    mρ = 0.7685; Γρ = 0.1507;
     # break up momentum
     p  = sqrt(λ(mπ2,mπ2,s)/(4*s));
     p0 = sqrt(λ(mπ2,mπ2,mρ^2))/(2*mρ);
@@ -109,7 +109,7 @@ function _fρ3(s::Number)
 end
 
 for name in ["fρ3", "ff2", "fρ", "ff0_1500", "fσ", "ff0_980"]
-    @eval const $(Symbol("norm_"*name)) = sqrt(quadgk(
+    @eval $(Symbol("norm_"*name)) = sqrt(quadgk(
         x->abs2($(Symbol("_"*name))(x))*sqrt((1-4mπ2/x)),4mπ2, Inf)[1]/(16*π^2))
     @eval $(Symbol(name))(σ) = $(Symbol("_"*name))(σ)/$(Symbol("norm_"*name))
 end
@@ -200,7 +200,8 @@ function compass_jmels_basis_psi(;QNs::NTuple{5,Int}=error("give quantum numbers
     fi = (S ≥ 0) ? isobarsV[S+1] : isobarsS[1-S]
     S = (S ≥ 0 ? S : 0)
     ###############
-    τ3 = change_basis(τ1...,mπ2,mπ2,mπ2,s)
+    τ3 = Array{Float64, 1}(undef, 5)
+    τ3 .= change_basis(τ1...,mπ2,mπ2,mπ2,s)
     (abs(τ3[2]) ≈ 1.0) && (τ3[2] = sign(τ3[1])*1.0);
     (abs(τ3[4]) ≈ 1.0) && (τ3[4] = sign(τ3[3])*1.0);
     (abs(τ3[2]) > 1.0 || abs(τ3[4]) > 1.0) && error("Something is wrong! (abs($(τ3[1])) > 1.0 || abs($(τ3[3]) > 1.0)")
@@ -276,15 +277,15 @@ end
 # function COMPASS_waves(s,σ1,cosθ1,ϕ1,cosθ23,ϕ23)
 #     m1sq = mπ2; m2sq = mπ2; m3sq = mπ2;
 #     # system 1 <-> 23
-#     const Dϵ1 = [(M > J || λ > J) ? 0.0im : WignerDϵ(ϵ==1,J,M,λ,ϕ1,acos(cosθ1),0) for J=0:6, M=0:2, ϵ=0:1, λ=-3:3]
-#     const D1  = [(λ > S) ? 0.0im : WignerD(S,λ,0,ϕ23,acos(cosθ23),0) for S=0:6, λ=-3:3]
+#     Dϵ1 = [(M > J || λ > J) ? 0.0im : WignerDϵ(ϵ==1,J,M,λ,ϕ1,acos(cosθ1),0) for J=0:6, M=0:2, ϵ=0:1, λ=-3:3]
+#     D1  = [(λ > S) ? 0.0im : WignerD(S,λ,0,ϕ23,acos(cosθ23),0) for S=0:6, λ=-3:3]
 #     # Z functions
-#     const Zϵf1 = Vector{Complex{Float64}}(Nwaves)
+#     Zϵf1 = Vector{Complex{Float64}}(Nwaves)
 #     Zϵf1[1] = 0.5+0.0im;
-#     const iV = [f(σ1) for f in isobarsV]
-#     const iS = [f(σ1) for f in isobarsS]
-#     const R = 1/0.2024; #it was 5
-#     const bw1 = [(L == 0) ? 1.0 : BlttWskpf[L](λ(s,σ1,m1sq)/(4s)*R^2) for L=0:6];
+#     iV = [f(σ1) for f in isobarsV]
+#     iS = [f(σ1) for f in isobarsS]
+#     R = 1/0.2024; #it was 5
+#     bw1 = [(L == 0) ? 1.0 : BlttWskpf[L](λ(s,σ1,m1sq)/(4s)*R^2) for L=0:6];
 #     for i in 2:Nwaves
 #         wn, name, J, P, M, ϵ, S, L = wavesfile[i,:]
 #         fi = (S ≥ 0) ? iV[S+1] : iS[1-S]
@@ -299,14 +300,14 @@ end
 #     σ3,τ3[1],τ3[2],τ3[3],τ3[4] = change_basis(σ1,cosθ1,ϕ1,cosθ23,ϕ23,m1sq,m2sq,m3sq,s)
 #     τ3[3] *= -1; τ3[4] += π
 #     # functions
-#     const Dϵ3 = [(M > J || λ > J) ? 0.0im : WignerDϵ(ϵ==1,J,M,λ,τ3[2],acos(τ3[1]),0) for J=0:6, M=0:2, ϵ=0:1, λ=-3:3]
-#     const D3  = [(λ > S) ? 0.0im : WignerD(S,λ,0,τ3[4],acos(τ3[3]),0) for S=0:6, λ=-3:3]
+#     Dϵ3 = [(M > J || λ > J) ? 0.0im : WignerDϵ(ϵ==1,J,M,λ,τ3[2],acos(τ3[1]),0) for J=0:6, M=0:2, ϵ=0:1, λ=-3:3]
+#     D3  = [(λ > S) ? 0.0im : WignerD(S,λ,0,τ3[4],acos(τ3[3]),0) for S=0:6, λ=-3:3]
 #     # Z functions
-#     const Zϵf3 = Vector{Complex{Float64}}(Nwaves)
+#     Zϵf3 = Vector{Complex{Float64}}(Nwaves)
 #     Zϵf3[1] = 0.5+0.0im;
 #     iV .= [f(σ3) for f in isobarsV]
 #     iS .= [f(σ3) for f in isobarsS]
-#     const bw3 = [(L == 0) ? 1.0 : BlttWskpf[L](λ(s,σ3,m3sq)/(4s)*R^2) for L=0:6];
+#     bw3 = [(L == 0) ? 1.0 : BlttWskpf[L](λ(s,σ3,m3sq)/(4s)*R^2) for L=0:6];
 #     for i in 2:Nwaves
 #         wn, name, J, P, M, ϵ, S, L = wavesfile[i,:]
 #         fi = (S ≥ 0) ? iV[S+1] : iS[1-S]
