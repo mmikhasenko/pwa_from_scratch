@@ -1,5 +1,5 @@
 # parameters
-mass_bin_name = "2320_2340"# "1540_1560"
+mass_bin_name = "0500_0520"# "1540_1560"
 tslice = "t1"
 path_wavelist = "src"
 path_to_working_folder = "data"
