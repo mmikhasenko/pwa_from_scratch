@@ -52,4 +52,5 @@ normalize_pars!(pars0, BmatMC, ModelBlocks)
 @time minpars = minimize(LLH, LLH_and_GRAD!;
     algorithm = :LD_SLSQP, verbose=1, starting_pars=minpars)
 
+println("Done! Saving...")
 writedlm(joinpath(path_to_working_folder,"llhfit_$(mass_bin_name)_$(tslice)_$(serial).txt"), minpars)
