@@ -63,7 +63,7 @@ function make_pblock_inds(block_inds)
     return pbls
 end
 
-extnd(Ψ, tmap) = [((tmap[2,i]==0) ? Ψ[tmap[1,i]] : 1im*Ψ[tmap[2,i]]) for i in 1:size(tmap,2)]
+extnd(Ψ, tmap) = [((tmap[2,i]==0) ? Ψ[tmap[1,i]]+0im : 1im*Ψ[tmap[2,i]]) for i in 1:size(tmap,2)]
 function shrnk(p, tmap)
     Nw = tmap[2,end] # work around
     outv = fill(0.0im,Nw)

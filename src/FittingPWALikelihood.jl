@@ -1,5 +1,6 @@
 module FittingPWALikelihood
 
+using LinearAlgebra
 using PWAHelper
 
 export createLLHandGRAD, minimize
@@ -13,7 +14,7 @@ function createLLHandGRAD(PsiDT, form, block_masks)
 
     Tmap = get_parameter_map(block_masks,Nwaves)
 
-    Np = size(Tmap,2)
+    Np = size(Tmap,2)::Int
 
     pblocks = make_pblock_inds(block_masks)
     vblocks = [let v = fill(0.0,Np)
@@ -21,7 +22,7 @@ function createLLHandGRAD(PsiDT, form, block_masks)
             v
         end for bl in pblocks]
 
-    BM = real.(contract_to_intensity(form,block_masks));
+    BM = (real.(contract_to_intensity(form,block_masks)))::Array{Float64,2};
 
     COHTS(X) = cohts(X,pblocks)
     COHSQ(X) = cohsq(X,pblocks)
@@ -29,7 +30,8 @@ function createLLHandGRAD(PsiDT, form, block_masks)
 
     function LLH(pars)
         @inbounds res = sum(log(COHSQ(EXTND(PsiDT[e,:]).*pars)) for e in 1:Nd)
-        - res + real(sum(pars[i]*BM[i,j]*pars[j] for i=1:Np, j=1:Np)) * Nd
+        bilin = Nd * (pars ⋅ (BM * pars))
+        - res + bilin
     end
 
     function GETDV(psi, pars)
@@ -69,10 +71,9 @@ function createLLHandGRAD(PsiDT, form, block_masks)
             val -= log(vale);
         end
         grad .*= 2.0
-
         BB = BM*pars;
-        val += pars'*BB * Nd;
-        grad .+= BB* (2Nd);
+        val += Nd * (pars ⋅ BB);
+        grad .+= BB * (2Nd);
         return val;
     end
 
@@ -95,8 +96,11 @@ end
 
 function minimize(minusLogLikelihood, andDerive!;
                   algorithm::Symbol = :LD_LBFGS,
-                  verbose::Int=0, precisn::Float64 = 1e-6,
-                  starting_pars::Vector{Float64} = error("I need the starting parameters!"))
+                  verbose::Int = 0,
+                  maxeval::Int = 50000,
+                  parsprecision::Float64 = 1e-4,
+                  llhtolerance::Float64 = 1e-6,
+                  starting_pars::Vector{Float64} = error("I need the starting parameters! Say starting_pars = [...]"))
     function to_minimize(x::Vector, grad::Vector)
         if length(grad) > 0
             v = andDerive!(x,grad)
@@ -109,8 +113,9 @@ function minimize(minusLogLikelihood, andDerive!;
         return v;
     end
     opt = Opt(algorithm, length(starting_pars)) # try LD_LBFGS || LD_MMA || LD_SLSQP
-    xtol_rel!(opt,precisn)
-    maxeval!(opt,500000)
+    xtol_rel!(opt,parsprecision)
+    maxeval!(opt,maxeval)
+    ftol_abs!(opt,llhtolerance);
 
     min_objective!(opt, to_minimize)
 
