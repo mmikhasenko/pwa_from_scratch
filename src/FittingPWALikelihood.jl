@@ -11,6 +11,7 @@ using ForwardDiff
 function createLLHandGRAD(PsiDT, form, block_masks)
 
     Nd, Nwaves = size(PsiDT);
+    transposedPsiDT = transpose(PsiDT)
 
     Tmap = get_parameter_map(block_masks,Nwaves)
 
@@ -29,9 +30,9 @@ function createLLHandGRAD(PsiDT, form, block_masks)
     EXTND(Ψ) = extnd(Ψ,Tmap)
 
     function LLH(pars)
-        @inbounds res = sum(log(COHSQ(EXTND(PsiDT[e,:]).*pars)) for e in 1:Nd)
-        bilin = Nd * (pars ⋅ (BM * pars))
-        - res + bilin
+        @inbounds res = sum(log(COHSQ(EXTND(@view(transposedPsiDT[:,e])).*pars)) for e in 1:Nd)
+        bilin = Nd * (pars' * BM * pars)
+        return -res + bilin
     end
 
     function GETDV(psi, pars)
@@ -52,10 +53,10 @@ function createLLHandGRAD(PsiDT, form, block_masks)
         Np = size(pars,1)
         hes = fill(0.0, Np, Np)
         for e in 1:Nd
-            v = GETDV(PsiDT[e,:],pars)
+            v = GETDV(@view(transposedPsiDT[:,e]),pars)
             deriv = 2*v
             vale = pars'*v
-            num =  GETHS(PsiDT[e,:],pars)*vale - deriv*deriv'
+            num =  GETHS(@view(transposedPsiDT[:,e]),pars)*vale - deriv*deriv'
             hes .-= num ./ vale^2
         end
         hes .+= BM* (2Nd);
@@ -65,7 +66,7 @@ function createLLHandGRAD(PsiDT, form, block_masks)
     function LLH_and_GRAD!(pars, grad)
         val = 0.0; grad .= 0.0
         for e in 1:Nd
-            @inbounds v = GETDV(PsiDT[e,:],pars)
+            @inbounds v = GETDV(@view(transposedPsiDT[:,e]),pars)
             vale = pars'*v
             grad .-= v / vale
             val -= log(vale);
@@ -80,7 +81,7 @@ function createLLHandGRAD(PsiDT, form, block_masks)
     function GRAD(pars)
         grad = fill(0.0,length(pars))
         for e in 1:Nd
-            @inbounds v = GETDV(PsiDT[e,:],pars)
+            @inbounds v = GETDV(@view(transposedPsiDT[:,e]),pars)
             vale = pars'*v
             grad .-= v / vale
         end

@@ -26,7 +26,7 @@ end
 function read_precalc_basis(fname)
     ld = readdlm(fname)
     Nh = div(size(ld,2),2)
-    ld[:,1:Nh]+1im*ld[:,(Nh+1):end]
+    return ld[:,1:Nh]+1im*ld[:,(Nh+1):end]
 end
 
 function get_parameter_map(block_inds, Nw)
@@ -46,7 +46,7 @@ function get_parameter_map(block_inds, Nw)
             count+=1
         end
     end
-    Tmap
+    return Tmap
 end
 
 function get_npars(block_inds)
@@ -75,7 +75,7 @@ function shrnk(p, tmap)
 end
 
 function cohsq(X, pblocks)
-    sum(abs2(sum(X[bl])) for bl in pblocks)
+    sum(abs2(sum(@view(X[bl]))) for bl in pblocks)
 end
 function cohts(X, pblocks)
     Np = length(X)
