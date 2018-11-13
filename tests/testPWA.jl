@@ -11,7 +11,7 @@ using PWAHelper
 using SDMHelper
 using FittingPWALikelihood
 
-mass_bin_name = "2320_2340"# "1540_1560"
+mass_bin_name = "1540_1560" # "2320_2340"
 tslice = "t1"
 # set names
 for app in ["rd", "mc", "fu"]
@@ -51,8 +51,8 @@ wavebasis = get_wavebasis(wavelist)
         for i=1:Nwaves, j=1:Nwaves] /size(PsiMC,1);
     v
 end
-write_cmatrix(BmatMC, "data/intergmat_$(mass_bin_name)_$(tslice)_mc.txt")
-BmatMC = read_cmatrix("data/intergmat_$(mass_bin_name)_$(tslice)_mc.txt");
+write_cmatrix(BmatMC, "data/integrmat_$(mass_bin_name)_$(tslice)_mc.txt")
+BmatMC = read_cmatrix("data/integrmat_$(mass_bin_name)_$(tslice)_mc.txt");
 
 let BmatMC_n = [BmatMC[i,j]/sqrt(BmatMC[i,i]*BmatMC[j,j]) for i=1:Nwaves, j=1:Nwaves];
     heatmap(real(BmatMC_n))
