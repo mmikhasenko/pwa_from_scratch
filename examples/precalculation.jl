@@ -1,11 +1,11 @@
 # parameters
-mass_bin_name = "2320_2340"# "1540_1560"
+mass_bin_name = ARGS[1]# "1540_1560"
 tslice = "t1"
 path_to_working_folder = "data"
 path_wavelist = "src"
 
 ######################################################
-
+@show ARGS
 push!(LOAD_PATH,"src")
 using amplitudes_compass
 using PWAHelper
@@ -28,5 +28,5 @@ wavebasis = get_wavebasis(wavelist)
 
 # do precalculations
 @time precalculate_compass_basis(wavebasis, kinvar_rd, basisfunc_rd)
-# @time precalculate_compass_basis(wavebasis, kinvar_mc, basisfunc_mc)
-# @time precalculate_compass_basis(wavebasis, kinvar_fu, basisfunc_fu)
+ @time precalculate_compass_basis(wavebasis, kinvar_mc, basisfunc_mc)
+ @time precalculate_compass_basis(wavebasis, kinvar_fu, basisfunc_fu)
