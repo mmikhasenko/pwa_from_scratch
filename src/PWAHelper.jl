@@ -9,8 +9,8 @@ export precalculate_compass_basis, read_precalc_basis
 # export precalculate_compass_basis_txt, read_precalc_basis_txt
 export get_npars
 export get_parameter_map, make_pblock_inds
-export extnd, shrnk, cohsq, cohts
-export contract_to_intensity, get_intesity
+export extnd, extnd!, shrnk, cohsq, cohts, cohts!
+export contract_to_intensity, get_intesity 
 export get_parameter_ranges, normalize_pars!
 
 function precalculate_compass_basis(basis,fin,fout)
@@ -63,7 +63,12 @@ function make_pblock_inds(block_inds)
     return pbls
 end
 
-extnd(Ψ, tmap) = [((tmap[2,i]==0) ? Ψ[tmap[1,i]]+0im : 1im*Ψ[tmap[2,i]]) for i in 1:size(tmap,2)]
+extnd(Ψ, tmap)  = [((tmap[2,i]==0) ? Ψ[tmap[1,i]] : 1im*Ψ[tmap[2,i]]) for i in 1:size(tmap,2)]
+function extnd!(X, Ψ, tmap)
+    for i in 1:size(tmap,2)
+        X[i] = (tmap[2,i]==0) ? Ψ[tmap[1,i]] : 1im*Ψ[tmap[2,i]]
+    end
+end
 function shrnk(p, tmap)
     Nw = tmap[2,end] # work around
     outv = fill(0.0im,Nw)
@@ -75,7 +80,7 @@ function shrnk(p, tmap)
 end
 
 function cohsq(X, pblocks)
-    sum(abs2(sum(@view(X[bl]))) for bl in pblocks)
+    sum(abs2, (sum(@view(X[bl]))) for bl in pblocks)
 end
 function cohts(X, pblocks)
     Np = length(X)
@@ -84,6 +89,18 @@ function cohts(X, pblocks)
         v
     end for bl in pblocks]
     sum(sum(X[bl])*pl for (pl,bl) in zip(vblocks, pblocks))
+end
+function cohts!(X, pblocks)
+    # Np = length(X)
+    # vblocks = [
+    #     let v = fill(0.0,Np)
+    #         v[bl] .= 1.0
+    #         v
+    #     end for bl in pblocks]
+    # sum(sum(X[bl])*pl for (pl,bl) in zip(vblocks, pblocks))
+    for bl in pblocks
+        @inbounds X[bl] .= sum(@view(X[bl]))
+    end
 end
 
 function contract_to_intensity(ΨΨstar, block_inds)
