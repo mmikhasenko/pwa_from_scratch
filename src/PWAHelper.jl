@@ -10,7 +10,7 @@ export precalculate_compass_basis, read_precalc_basis
 export get_npars
 export get_parameter_map, make_pblock_inds
 export extnd, extnd!, shrnk, cohsq, cohts, cohts!
-export contract_to_intensity, get_intesity 
+export contract_to_intensity, get_intesity
 export get_parameter_ranges, normalize_pars!
 
 function precalculate_compass_basis(basis,fin,fout)
@@ -66,7 +66,7 @@ end
 extnd(Ψ, tmap)  = [((tmap[2,i]==0) ? Ψ[tmap[1,i]] : 1im*Ψ[tmap[2,i]]) for i in 1:size(tmap,2)]
 function extnd!(X, Ψ, tmap)
     for i in 1:size(tmap,2)
-        X[i] = (tmap[2,i]==0) ? Ψ[tmap[1,i]] : 1im*Ψ[tmap[2,i]]
+        @inbounds X[i] = (tmap[2,i]==0) ? Ψ[tmap[1,i]] : 1im*Ψ[tmap[2,i]]
     end
 end
 function shrnk(p, tmap)

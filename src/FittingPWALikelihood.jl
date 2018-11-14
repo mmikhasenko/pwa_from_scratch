@@ -31,12 +31,12 @@ function createLLHandGRAD(PsiDT, form, block_masks)
     EXTND!(X,Ψ) = extnd!(X,Ψ,Tmap)
 
     function LLH(pars)
-        # @inbounds res = sum(log, (COHSQ(EXTND(@view(transposedPsiDT[:,e])).*pars)) for e in 1:Nd)
         v = EXTND(@view(transposedPsiDT[:,1]))
         res = sum(log,
             let
                 EXTND!(v,@view(transposedPsiDT[:,e]))
-                COHSQ(v.*pars)
+                v .*= pars
+                COHSQ(v)
             end for e in 1:Nd)
         bilin = Nd * (pars' * BM * pars)
         return -res + bilin
@@ -45,12 +45,9 @@ function createLLHandGRAD(PsiDT, form, block_masks)
     function GETDV!(X, psi, pars)
         ExtΨ = Array{Complex{Float64}}(undef, length(pars))
         EXTND!(ExtΨ, psi)
-        # cExtΨ = conj.(ExtΨ)
         Y = ExtΨ.*pars
         COHTS!(Y)
         Y .*= conj.(ExtΨ)
-        # cv = conj.(ExtΨ) .* Y
-        # X .= real.(cv)
         X .= real.(Y)
         return
     end
@@ -80,27 +77,29 @@ function createLLHandGRAD(PsiDT, form, block_masks)
 
     function LLH_and_GRAD!(pars, grad)
         val = 0.0; grad .= 0.0
-        temp = fill(0.0, Np)
+        temp = Array{Float64}(undef,Np)
         for e in 1:Nd
             GETDV!(temp, @view(transposedPsiDT[:,e]),pars)
-            vale = pars'*temp
-            grad .-= temp / vale
+            vale = pars' * temp
+            temp ./= vale
+            grad .-= temp
             val -= log(vale);
         end
         grad .*= 2.0
         BB = BM*pars;
-        val += Nd * (pars ⋅ BB);
-        grad .+= BB * (2Nd);
+        val += Nd * (pars' * BB);
+        grad .+= BB .* (2Nd);
         return val;
     end
 
     function GRAD(pars)
-        grad = fill(0.0,length(pars))
+        grad = fill(0.0,Np)
         temp = Array{Float64}(undef,length(pars))
         for e in 1:Nd
             GETDV!(temp, @view(transposedPsiDT[:,e]),pars)
             vale = pars' * temp
-            grad .-= temp ./ (vale)
+            temp ./= vale
+            grad .-= temp
         end
         grad .*= 2.0
         BB = BM*pars;
