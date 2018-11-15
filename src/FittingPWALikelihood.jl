@@ -163,8 +163,8 @@ function minimize(minusLogLikelihood, andDerive!;
                   algorithm::Symbol = :LD_LBFGS,
                   verbose::Int = 0,
                   maxeval::Int = 50000,
-                  parsprecision::Float64 = 1e-4,
-                  llhtolerance::Float64 = 1e-2,
+                  # parsprecision::Float64 = 1e-4,
+                  llhtolerance::Float64 = 1e-4,
                   starting_pars::Vector{Float64} = error("I need the starting parameters! Say starting_pars = [...]"))
     i_iter = 1;
     function to_minimize(x::Vector, grad::Vector)
