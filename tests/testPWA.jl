@@ -11,7 +11,7 @@ using PWAHelper
 using SDMHelper
 using FittingPWALikelihood
 
-mass_bin_name = "1540_1560" # "2320_2340"
+mass_bin_name = "2320_2340" # "2320_2340"
 tslice = "t1"
 # set names
 for app in ["rd", "mc", "fu"]
@@ -54,16 +54,12 @@ end
 write_cmatrix(BmatMC, "data/integrmat_$(mass_bin_name)_$(tslice)_mc.txt")
 BmatMC = read_cmatrix("data/integrmat_$(mass_bin_name)_$(tslice)_mc.txt");
 
-let BmatMC_n = [BmatMC[i,j]/sqrt(BmatMC[i,i]*BmatMC[j,j]) for i=1:Nwaves, j=1:Nwaves];
-    heatmap(real(BmatMC_n))
-end
-
 const noϵ =  [1] # flat wave
 const posϵ = [i for (i,ϵ) in enumerate(wavelist[:,6]) if ϵ=="+"]
 const negϵ = [i for (i,ϵ) in enumerate(wavelist[:,6]) if ϵ=="-"]
 
 # Model description
-const ModelBlocks = [noϵ, posϵ, negϵ, negϵ]
+const ModelBlocks = [noϵ, posϵ, negϵ, negϵ] #
 
 # load precalculated data array
 const PsiRD = read_precalc_basis(
@@ -73,23 +69,51 @@ LLH, GRAD, LLH_and_GRAD!, HES = createLLHandGRAD(PsiRD, BmatMC, ModelBlocks);
 
 const Npar = get_npars(ModelBlocks)
 
+const pars0 = rand(Npar);
 pars0 = rand(Npar);
 pars0 .*= get_parameter_ranges(BmatMC, ModelBlocks)
 normalize_pars!(pars0, BmatMC, ModelBlocks)
 
-@time @show LLH(pars0)
-@time @show LLH(pars0)
-
-@profiler LLH(pars0)
-
-minpars0 = vcat(readdlm("minpars_compass_$(mass_bin_name).txt")...)[1:Npar];
-# start nice algorithm which goes directly to the minimum
+# minpars0 = vcat(readdlm("minpars_compass_$(mass_bin_name).txt")...)[1:Npar];
 @time minpars = minimize(LLH, LLH_and_GRAD!;
-    algorithm = :LD_LBFGS, verbose=1, starting_pars=pars0)
-# start more precise algorithm
+    algorithm = :LD_LBFGS, verbose=1, starting_pars=pars0,
+    llhtolerance=1e-4)
+
+get_intesity(pars0, BmatMC, ModelBlocks)
+get_intesity(minpars, BmatMC, ModelBlocks)
+
+minpars_new = minpars
+
+#####################################################################################
+#####################################################################################
+
+BmatMC_n = [BmatMC[i,j]/sqrt(BmatMC[i,i]*BmatMC[j,j]) for i=1:Nwaves, j=1:Nwaves];
+let BmatMC_n = [BmatMC[i,j]/sqrt(BmatMC[i,i]*BmatMC[j,j]) for i=1:Nwaves, j=1:Nwaves];
+    heatmap(real(BmatMC_n))
+end
+PsiRD_n = copy(PsiRD)
+for i in 1:size(PsiRD_n,2)
+    PsiRD_n[:,i] .*= 1.0/sqrt(BmatMC[i,i])
+end
+
+LLH, GRAD, LLH_and_GRAD!, HES = createLLHandGRAD(PsiRD_n, BmatMC_n, ModelBlocks);
+
+const pars0 = rand(Npar);
+pars0 = rand(Npar);
+pars0 .*= get_parameter_ranges(BmatMC_n, ModelBlocks)
+normalize_pars!(pars0, BmatMC_n, ModelBlocks)
+
+# minimization
 @time minpars = minimize(LLH, LLH_and_GRAD!;
-    algorithm = :LD_SLSQP, verbose=1, starting_pars=minpars)
-writedlm(joinpath("data","minpars_compass_$(mass_bin_name)_$(tslice).txt"), minpars)
+    algorithm = :LD_LBFGS, verbose=1, starting_pars=pars0,
+    llhtolerance=1e-4)
+
+# check of normalization
+get_intesity(pars0, BmatMC_n, ModelBlocks)
+get_intesity(minpars, BmatMC_n, ModelBlocks)
+
+usual_minpars = minpars ./ abs.(extnd([sqrt(BmatMC[i,i]) for i in 1:size(BmatMC,1)],
+    get_parameter_map(ModelBlocks, Nwaves)))
 
 #####################################################################################
 #####################################################################################
@@ -136,7 +160,7 @@ histogram(minimaLLH.-LLH(minpars0), bins=linspace(-2,5,10))
 @time weights = let mpars = minpars,
     Tmap = get_parameter_map(ModelBlocks, Nwaves),
     pblocks = make_pblock_inds(ModelBlocks)
-        [cohsq(extnd(PsiMC[i,:],Tmap).*mpars,pblocks) for i in 1:size(PsiMC,1)];
+        [cohsq(extnd(@view(PsiMC[i,:]),Tmap).*mpars,pblocks) for i in 1:size(PsiMC,1)];
 end;
 
 const MC1 = readdlm(kinvar_mc);
@@ -164,8 +188,6 @@ savefig(joinpath("plots","data_with_errors.pdf"))
 
 #####################################################################################
 #####################################################################################
-
-
 
 @time const BmatFU = let
     @time const PsiFU = read_precalc_basis(basisfunc_fu);
