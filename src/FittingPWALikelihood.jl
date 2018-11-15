@@ -11,10 +11,7 @@ using ForwardDiff
 function createLLHandGRAD(PsiDT, form, block_masks)
 
     Nd, Nwaves = size(PsiDT);
-    transposedPsiDT = transpose(PsiDT)
-
     Tmap = get_parameter_map(block_masks,Nwaves)
-
     Np = size(Tmap,2)::Int
 
     pblocks = make_pblock_inds(block_masks)
@@ -30,30 +27,75 @@ function createLLHandGRAD(PsiDT, form, block_masks)
     EXTND(Ψ) = extnd(Ψ,Tmap)
     EXTND!(X,Ψ) = extnd!(X,Ψ,Tmap)
 
+    transposedExtendedPsiDT = Array{Complex{Float64}}(undef,Np,Nd)
+    for e in 1:Nd
+        EXTND!(@view(transposedExtendedPsiDT[:,e]),@view(PsiDT[e,:]))
+    end
+
+    # function LLH(pars)
+    #     v = EXTND(@view(transposedPsiDT[:,1]))
+    #     res = sum(log,
+    #         let
+    #             EXTND!(v,@view(transposedPsiDT[:,e]))
+    #             v .*= pars
+    #             COHSQ(v)
+    #         end for e in 1:Nd)
+    #     bilin = Nd * (pars' * BM * pars)
+    #     return -res + bilin
+    # end
+    # function LLH(pars)
+    #     res = sum(log,
+    #         let
+    #             v = transposedExtendedPsiDT[:,e]
+    #             v .*= pars
+    #             COHSQ(v)
+    #         end for e in 1:Nd)
+    #     bilin = Nd * (pars' * BM * pars)
+    #     return -res + bilin
+    # end
     function LLH(pars)
-        v = EXTND(@view(transposedPsiDT[:,1]))
         res = sum(log,
-            let
-                EXTND!(v,@view(transposedPsiDT[:,e]))
-                v .*= pars
-                COHSQ(v)
-            end for e in 1:Nd)
+                @views sum(abs2,
+                    transposedExtendedPsiDT[bl,e] ⋅ pars[bl]
+                for bl in pblocks)
+                    for e in 1:Nd)
         bilin = Nd * (pars' * BM * pars)
         return -res + bilin
     end
 
-    function GETDV!(X, psi, pars)
-        ExtΨ = Array{Complex{Float64}}(undef, length(pars))
-        EXTND!(ExtΨ, psi)
-        Y = ExtΨ.*pars
-        COHTS!(Y)
-        Y .*= conj.(ExtΨ)
-        X .= real.(Y)
-        return
+    # function GETDV!(X, psi, pars)
+    #     ExtΨ = Array{Complex{Float64}}(undef, length(pars))
+    #     EXTND!(ExtΨ, psi)
+    #     Y = ExtΨ.*pars
+    #     COHTS!(Y)
+    #     Y .*= conj.(ExtΨ)
+    #     X .= real.(Y)
+    #     return
+    # end
+    # function GETDV!(X, ExtΨ, pars)
+    #     Y = ExtΨ.*pars
+    #     COHTS!(Y)
+    #     Y .*= conj.(ExtΨ)
+    #     X .= real.(Y)
+    # end
+    function GETDV!(X, ExtΨ, Ypars)
+        @inbounds Ypars .*= ExtΨ
+        @views for bl in pblocks
+            @inbounds Ypars[bl] .= sum(Ypars[bl])
+        end
+        Ypars .*= conj.(ExtΨ)
+        X .= real.(Ypars)
     end
+    # function GETDV!(X, ExtΨ, pars)
+    #     @views for bl in pblocks
+    #         X[bl] .= real.(
+    #             conj.(ExtΨ[bl]) .*
+    #             (pars[bl]' * ExtΨ[bl])
+    #         )
+    #     end
+    # end
 
-    function GETHS(psi, pars)
-        ExtΨ = EXTND(psi)
+    function GETHS(ExtΨ, pars)
         return sum(
             let v = ExtΨ.*bl
                 real.(2*v*v')
@@ -63,12 +105,14 @@ function createLLHandGRAD(PsiDT, form, block_masks)
     function HESSIAN(pars)
         Np = size(pars,1)
         hes = fill(0.0, Np, Np)
-        v = fill(0.0, Np)
+        v = Array{Float64}(undef, Np)
+        Yp = Array{Complex{Float64}}(undef, Np)
         for e in 1:Nd
-            GETDV!(v, @view(transposedPsiDT[:,e]),pars)
+            Yp .= pars
+            GETDV!(v, @view(transposedExtendedPsiDT[:,e]),Yp)
             deriv = 2*v
             vale = pars' * v
-            num = GETHS(@view(transposedPsiDT[:,e]),pars)*vale - deriv * deriv'
+            num = GETHS(@view(transposedExtendedPsiDT[:,e]),pars)*vale - deriv * deriv'
             hes .-= num ./ vale^2
         end
         hes .+= BM* (2Nd);
@@ -78,10 +122,12 @@ function createLLHandGRAD(PsiDT, form, block_masks)
     function LLH_and_GRAD!(pars, grad)
         val = 0.0; grad .= 0.0
         temp = Array{Float64}(undef,Np)
+        Yp = Array{Complex{Float64}}(undef, Np)
         for e in 1:Nd
-            GETDV!(temp, @view(transposedPsiDT[:,e]),pars)
-            vale = pars' * temp
-            temp ./= vale
+            Yp .= pars
+            GETDV!(temp, @view(transposedExtendedPsiDT[:,e]), Yp)
+            vale = (pars' * temp)::Float64
+            temp .*= (1.0/vale)
             grad .-= temp
             val -= log(vale);
         end
@@ -94,11 +140,13 @@ function createLLHandGRAD(PsiDT, form, block_masks)
 
     function GRAD(pars)
         grad = fill(0.0,Np)
-        temp = Array{Float64}(undef,length(pars))
+        temp = Array{Float64}(undef,Np)
+        Yp = Array{Complex{Float64}}(undef, Np)
         for e in 1:Nd
-            GETDV!(temp, @view(transposedPsiDT[:,e]),pars)
-            vale = pars' * temp
-            temp ./= vale
+            Yp .= pars
+            GETDV!(temp, @view(transposedExtendedPsiDT[:,e]),Yp)
+            vale = (pars' * temp)::Float64
+            temp .*= 1/vale
             grad .-= temp
         end
         grad .*= 2.0
@@ -116,21 +164,23 @@ function minimize(minusLogLikelihood, andDerive!;
                   verbose::Int = 0,
                   maxeval::Int = 50000,
                   parsprecision::Float64 = 1e-4,
-                  llhtolerance::Float64 = 1e-6,
+                  llhtolerance::Float64 = 1e-2,
                   starting_pars::Vector{Float64} = error("I need the starting parameters! Say starting_pars = [...]"))
+    i_iter = 1;
     function to_minimize(x::Vector, grad::Vector)
         if length(grad) > 0
             v = andDerive!(x,grad)
         else
             v = minusLogLikelihood(x)
         end
-        verbose==1 && @show v
+        i_iter += 1
+        verbose==1 && println(i_iter,": ",v)
         verbose==2 && @show v,x
         verbose==3 && @show v,grad
         return v;
     end
     opt = Opt(algorithm, length(starting_pars)) # try LD_LBFGS || LD_MMA || LD_SLSQP
-    xtol_rel!(opt,parsprecision)
+    # xtol_rel!(opt,parsprecision)
     maxeval!(opt,maxeval)
     ftol_abs!(opt,llhtolerance);
 
