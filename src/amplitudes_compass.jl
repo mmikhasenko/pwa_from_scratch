@@ -36,7 +36,7 @@ _a = [0.1131, 0.0]
 # AMP Table 1, M solution: c_11^0
 # last item - Katchaev modification
 _c = [0.0337, -0.3185, -0.0942, -0.5927, 0.0]
-_sP = [-0.0074, 0.9828]
+_sP = [-0.0074, 0.9828] .+ 1e-7 # for numerical stability
 
 function _fσ(s::Number)
     (s < 4mπ2) && return 0.0;
