@@ -17,7 +17,7 @@ for app in ["rd", "mc", "fu"]
     @eval $(Symbol("basisfunc_"*app)) = joinpath($pwf,"functions_$(mass_bin_name)_$(tslice)_"*$app*".txt")
 end
 
-# read wavelist throw waves below threshol
+# read wavelist throw waves below threshold
 wavelist = get_wavelist(joinpath(path_wavelist,"wavelist_formated.txt");
      path_to_thresholds=joinpath(path_wavelist,"thresholds_formated.txt"),
      M3pi=Meta.parse(mass_bin_name[1:4])/1000)
