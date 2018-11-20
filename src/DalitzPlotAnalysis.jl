@@ -172,6 +172,7 @@ lf(i) = (i>0) ? logfact[i] :  0.0;
 function Wignerd(aj, am, an, β)
     (β == zero(β)) && return (am==an) ? one(β) : zero(β)
     (β == zero(β)) && return (am==-an) ? ((aj-am)%2==1 ? -one(β) : one(β))  : zero(β)
+    (β ≈ π) && return (am==-an) ? ((aj-am)%2==1 ? -one(β) : one(β)) : zero(β)
 
     jpm = aj+am;
     jpn = aj+an;
