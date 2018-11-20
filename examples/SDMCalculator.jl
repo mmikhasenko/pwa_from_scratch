@@ -14,6 +14,17 @@ using PWAHelper
 using amplitudes_compass
 using DelimitedFiles
 
+# set names
+for app in ["rd", "mc", "fu"]
+    pwf = path_to_working_folder
+    @eval $(Symbol("basisfunc_"*app)) = joinpath($pwf,"functions_$(mass_bin_name)_$(tslice)_"*$app*".txt")
+end
+# get number of lines
+nlines_rd = Meta.parse(split(read(`wc -l $(basisfunc_rd)`,String)," ")[1])
+nlines_mc = Meta.parse(split(read(`wc -l $(basisfunc_mc)`,String)," ")[1])
+nlines_fu = Meta.parse(split(read(`wc -l $(basisfunc_fu)`,String)," ")[1])
+normfact = nlines_mc/nlines_fu*nlines_rd
+
 # read matrix of integrals
 BmatFU = read_cmatrix("data/integrmat_$(mass_bin_name)_$(tslice)_fu.txt");
 
@@ -40,7 +51,7 @@ SDMs = []
 for path_and_filename in list_of_files
     minpars = readdlm(path_and_filename);
     # calculate
-    SDM = size(PsiRD,1)*pars_to_SDM(minpars, BmatFU, ModelBlocks)
+    SDM = normfact*pars_to_SDM(minpars, BmatFU, ModelBlocks)
     for i in 1:size(SDM,1)
     	println(SDM[i,i])
     end

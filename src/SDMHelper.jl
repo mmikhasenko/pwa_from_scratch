@@ -8,12 +8,14 @@ export write_cmatrix, read_cmatrix
 export constract_values
 
 function pars_to_SDM(pars, Bmat, block_masks)
-    Tmap = get_parameter_map(block_masks)
-    pblocks = make_pblock_masks(block_masks)
+    Tmap = get_parameter_map(block_masks, size(Bmat,1))
+    pblocks = make_pblock_inds(block_masks)
     Nw = size(Bmat,1)
     nonormSDM = fill(0.0im, Nw, Nw)
     for bl in pblocks
-        sp = shrnk(pars.*bl,Tmap)
+        pars_bl = fill(0.0, length(pars))
+        pars_bl[bl] .= pars[bl]
+        sp = shrnk(pars_bl,Tmap)
         nonormSDM .+= [conj(sp[i])*sp[j] for i in 1:Nw, j in 1:Nw]
     end
     diagSHBM = real.(diag(Bmat))
@@ -29,7 +31,7 @@ function SDM_to_pars(SDM, Bmat, block_masks)
     end
     pars = pars ./ sqrt.(diag(Bmat))
     # convert to re im
-    Tmap = get_parameter_map(block_masks)
+    Tmap = get_parameter_map(block_masks, size(Bmat,1))
     fpars = fill(0.0, size(Tmap,2))
     for i in 1:size(Tmap,2)
         if Tmap[1,i] != 0
