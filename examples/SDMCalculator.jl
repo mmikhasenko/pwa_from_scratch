@@ -52,6 +52,6 @@ for path_and_filename in list_of_files
     for i in 1:size(SDM,1)
     	println(SDM[i,i])
     end
-    # push!(SDMs,size(PsiRD,1)*pars_to_SDM(minpars, BmatFU, ModelBlocks))
+    # push!(SDMs,normfact*pars_to_SDM(minpars, BmatFU, ModelBlocks))
     # as you see you also need to load/calculate size(PsiRD) and minpars.
 end

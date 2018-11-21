@@ -102,22 +102,29 @@ end
 
 LLH, GRAD, LLH_and_GRAD!, HES = createLLHandGRAD(PsiRD_n, BmatMC_n, ModelBlocks);
 
-const pars0 = rand(Npar);
-pars0 = rand(Npar);
-pars0 .*= get_parameter_ranges(BmatMC_n, ModelBlocks)
-normalize_pars!(pars0, BmatMC_n, ModelBlocks)
+const nAtt = 10
+MINs = []
+for att in 1:nAtt
+    const pars0 = rand(Npar);
+    pars0 = rand(Npar);
+    pars0 .*= get_parameter_ranges(BmatMC_n, ModelBlocks)
+    normalize_pars!(pars0, BmatMC_n, ModelBlocks)
 
-# minimization
-@time minpars = minimize(LLH, LLH_and_GRAD!;
-    algorithm = :LD_LBFGS, verbose=1, starting_pars=pars0,
-    llhtolerance=1e-4)
+    # minimization
+    @time minpars = minimize(LLH, LLH_and_GRAD!;
+        algorithm = :LD_LBFGS, verbose=1, starting_pars=pars0,
+        llhtolerance=1e-4)
 
-# check of normalization
-get_intesity(pars0, BmatMC_n, ModelBlocks)
-get_intesity(minpars, BmatMC_n, ModelBlocks)
+    # check of normalization
+    get_intesity(pars0, BmatMC_n, ModelBlocks)
+    get_intesity(minpars, BmatMC_n, ModelBlocks)
 
-usual_minpars = minpars ./ abs.(extnd([sqrt(BmatMC[i,i]) for i in 1:size(BmatMC,1)],
-    get_parameter_map(ModelBlocks, Nwaves)))
+    usual_minpars = minpars ./ abs.(extnd([sqrt(BmatMC[i,i]) for i in 1:size(BmatMC,1)],
+        get_parameter_map(ModelBlocks, Nwaves)))
+    push!(MINs,usual_minpars)
+end
+LLHs = LLH.(MINs)
+minpars = MINs[indmin(LLHs)];
 
 #####################################################################################
 #####################################################################################
