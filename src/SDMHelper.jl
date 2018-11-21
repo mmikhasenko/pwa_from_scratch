@@ -3,6 +3,8 @@ module SDMHelper
 using DelimitedFiles
 using PWAHelper
 
+using LinearAlgebra
+
 export SDM_to_pars, pars_to_SDM
 export write_cmatrix, read_cmatrix
 export constract_values

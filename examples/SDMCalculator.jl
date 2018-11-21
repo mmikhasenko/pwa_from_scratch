@@ -23,14 +23,11 @@ end
 nlines_rd = Meta.parse(split(read(`wc -l $(basisfunc_rd)`,String)," ")[1])
 nlines_mc = Meta.parse(split(read(`wc -l $(basisfunc_mc)`,String)," ")[1])
 nlines_fu = Meta.parse(split(read(`wc -l $(basisfunc_fu)`,String)," ")[1])
-normfact = nlines_mc/nlines_fu*nlines_rd
+normfact = nlines_fu/nlines_mc*nlines_rd
 
 # read matrix of integrals
 BmatFU = read_cmatrix("data/integrmat_$(mass_bin_name)_$(tslice)_fu.txt");
 
-# load precalculated data array
-const PsiRD = read_precalc_basis(
-    joinpath(path_to_working_folder,"functions_$(mass_bin_name)_$(tslice)_rd.txt"));
 # read wavelist throw waves below threshol
 wavelist = get_wavelist(joinpath(path_wavelist,"wavelist_formated.txt");
          path_to_thresholds=joinpath(path_wavelist,"thresholds_formated.txt"),

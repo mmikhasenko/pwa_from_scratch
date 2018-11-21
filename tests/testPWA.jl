@@ -11,13 +11,18 @@ using PWAHelper
 using SDMHelper
 using FittingPWALikelihood
 
-mass_bin_name = "2320_2340" # "2320_2340"
+mass_bin_name = "1540_1560" # "2320_2340"
 tslice = "t1"
 # set names
 for app in ["rd", "mc", "fu"]
     @eval $(Symbol("kinvar_"*app)) = joinpath("data","variables_$(mass_bin_name)_$(tslice)_"*$app*".txt")
     @eval $(Symbol("basisfunc_"*app)) = joinpath("data","functions_$(mass_bin_name)_$(tslice)_"*$app*".txt")
 end
+# get number of lines
+nlines_rd = Meta.parse(split(read(`wc -l $(basisfunc_rd)`,String)," ")[1])
+nlines_mc = Meta.parse(split(read(`wc -l $(basisfunc_mc)`,String)," ")[1])
+nlines_fu = Meta.parse(split(read(`wc -l $(basisfunc_fu)`,String)," ")[1])
+normfact = nlines_fu/nlines_mc*nlines_rd
 
 ##### Converting data data #####
 
@@ -33,7 +38,7 @@ end
 
 wavelist = get_wavelist(joinpath(pwd(),"src/wavelist_formated.txt");
     path_to_thresholds=joinpath(pwd(),"src/thresholds_formated.txt"),
-    M3pi=parse(mass_bin_name[1:4])/1000)
+    M3pi=Meta.parse(mass_bin_name[1:4])/1000)
 
 Nwaves = size(wavelist,1)
 
@@ -44,15 +49,14 @@ wavebasis = get_wavebasis(wavelist)
 @time precalculate_compass_basis(wavebasis, kinvar_mc, basisfunc_mc)
 @time precalculate_compass_basis(wavebasis, kinvar_fu, basisfunc_fu)
 
-@time const PsiMC = read_precalc_basis(basisfunc_mc);
-
 @time const BmatMC = let
-    v = [sum(PsiMC[e,i]'*PsiMC[e,j] for e in 1:size(PsiMC,1))
-        for i=1:Nwaves, j=1:Nwaves] /size(PsiMC,1);
-    v
+    @time PsiMC = read_precalc_basis(basisfunc_mc)
+    PsiTMC = transpose(PsiMC)
+    @views v = sum(PsiTMC[:,e] * PsiTMC[:,e]' for e in 1:size(PsiMC,1)) ./ size(PsiMC,1);
+    conj(v)
 end
 write_cmatrix(BmatMC, "data/integrmat_$(mass_bin_name)_$(tslice)_mc.txt")
-BmatMC = read_cmatrix("data/integrmat_$(mass_bin_name)_$(tslice)_mc.txt");
+const BmatMC = read_cmatrix("data/integrmat_$(mass_bin_name)_$(tslice)_mc.txt")
 
 const noϵ =  [1] # flat wave
 const posϵ = [i for (i,ϵ) in enumerate(wavelist[:,6]) if ϵ=="+"]
@@ -79,7 +83,7 @@ normalize_pars!(pars0, BmatMC, ModelBlocks)
     algorithm = :LD_LBFGS, verbose=1, starting_pars=pars0,
     llhtolerance=1e-4)
 
-get_intesity(pars0, BmatMC, ModelBlocks)
+get_intesity(pars0,   BmatMC, ModelBlocks)
 get_intesity(minpars, BmatMC, ModelBlocks)
 
 minpars_new = minpars
@@ -191,23 +195,32 @@ savefig(joinpath("plots","data_with_errors.pdf"))
 
 @time const BmatFU = let
     @time const PsiFU = read_precalc_basis(basisfunc_fu);
-    [sum(PsiFU[e,i]'*PsiFU[e,j] for e in 1:size(PsiFU,1))
-        for i=1:Nwaves, j=1:Nwaves] /size(PsiMC,1)
+    PsiTFU = transpose(PsiFU)
+    @views v = sum(PsiTFU[:,e] * PsiTFU[:,e]' for e in 1:size(PsiTFU,2)) ./ size(PsiFU,1);
+    conj(v)
 end
 write_cmatrix(BmatFU, "data/integrmat_$(mass_bin_name)_$(tslice)_fu.txt")
 BmatFU = read_cmatrix("data/integrmat_$(mass_bin_name)_$(tslice)_fu.txt")
 
-SDM = size(PsiRD,1)*pars_to_SDM(minpars, BmatFU, ModelBlocks)
-SDM1 = size(PsiRD,1)*pars_to_SDM(minima[:,1], BmatFU, ModelBlocks)
-SDM9 = size(PsiRD,1)*pars_to_SDM(minima[:,9], BmatFU, ModelBlocks)
-SDM26 = size(PsiRD,1)*pars_to_SDM(minima[:,26], BmatFU, ModelBlocks)
+BmatFU_n = [BmatFU[i,j]/sqrt(BmatFU[i,i]*BmatFU[j,j]) for i=1:Nwaves, j=1:Nwaves];
+let BmatFU_n = [BmatFU[i,j]/sqrt(BmatFU[i,i]*BmatFU[j,j]) for i=1:Nwaves, j=1:Nwaves];
+    heatmap(real(BmatFU_n))
+end
+
+# pars_to_SDM(minpars, BmatFU, ModelBlocks)
+
+SDM = normfact*pars_to_SDM(minpars, BmatFU, ModelBlocks)
+
+diag(SDM)
 
 minpars./SDM_to_pars(SDM/size(PsiRD,1), BmatFU, ModelBlocks)
-SDM_RD = let path = "/localhome/mikhasenko/cernbox/tmp/pwa_from_scratch_data"
-    v = readdlm(joinpath(path,"0.100000-0.112853","sdm53.re")) +
-        1im*readdlm(joinpath(path,"0.100000-0.112853","sdm53.im"))
-    v[thresholds_filter,thresholds_filter]
+SDM_RD = let path = "/mnt/data/compass/2008/pwa_results/SDMs/0.100000-0.112853/"
+    v = readdlm(joinpath(path,"sdm92.re")) +
+        1im*readdlm(joinpath(path,"sdm92.im"))
+    # v[thresholds_filter,thresholds_filter]
 end
+
+diag(SDM_RD)
 
 SDM_RD_err = let path = "/localhome/mikhasenko/cernbox/tmp/pwa_from_scratch_data"
     v = readdlm(joinpath(path,"0.100000-0.112853","sdm53-err.re")) +

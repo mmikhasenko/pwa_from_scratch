@@ -28,5 +28,5 @@ wavebasis = get_wavebasis(wavelist)
 
 # do precalculations
 @time precalculate_compass_basis(wavebasis, kinvar_rd, basisfunc_rd)
- @time precalculate_compass_basis(wavebasis, kinvar_mc, basisfunc_mc)
- @time precalculate_compass_basis(wavebasis, kinvar_fu, basisfunc_fu)
+@time precalculate_compass_basis(wavebasis, kinvar_mc, basisfunc_mc)
+@time precalculate_compass_basis(wavebasis, kinvar_fu, basisfunc_fu)

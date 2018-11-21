@@ -12,19 +12,21 @@ export get_parameter_map, make_pblock_inds
 export extnd, extnd!, shrnk, cohsq, cohts, cohts!
 export contract_to_intensity, get_intesity
 export get_parameter_ranges, normalize_pars!
+export calculate_integrals_from_precalc_basis
+
 
 function precalculate_compass_basis(basis,fin,fout)
     mm = readdlm(fin); Nd = size(mm,1)
     m2 = fill(0.0im, Nd, length(basis))
     @progress for e in 1:Nd
         for (i,b) in enumerate(basis)
-            m2[e,i] = b(mm[e,2:end]..., mm[e,1]);
+            m2[e,i] = b(@view(mm[e,2:end])..., mm[e,1]);
         end
     end
     writedlm(fout,[real(m2) imag(m2)])
 end
 function read_precalc_basis(fname)
-    ld = readdlm(fname)
+    ld = readdlm(fname, Float64)
     Nh = div(size(ld,2),2)
     return ld[:,1:Nh]+1im*ld[:,(Nh+1):end]
 end
