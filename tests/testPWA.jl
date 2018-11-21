@@ -102,29 +102,22 @@ end
 
 LLH, GRAD, LLH_and_GRAD!, HES = createLLHandGRAD(PsiRD_n, BmatMC_n, ModelBlocks);
 
-const nAtt = 10
-MINs = []
-for att in 1:nAtt
-    const pars0 = rand(Npar);
-    pars0 = rand(Npar);
-    pars0 .*= get_parameter_ranges(BmatMC_n, ModelBlocks)
-    normalize_pars!(pars0, BmatMC_n, ModelBlocks)
+const pars0 = rand(Npar);
+pars0 = rand(Npar);
+pars0 .*= get_parameter_ranges(BmatMC_n, ModelBlocks)
+normalize_pars!(pars0, BmatMC_n, ModelBlocks)
 
-    # minimization
-    @time minpars = minimize(LLH, LLH_and_GRAD!;
-        algorithm = :LD_LBFGS, verbose=1, starting_pars=pars0,
-        llhtolerance=1e-4)
+# minimization
+@time minpars = minimize(LLH, LLH_and_GRAD!;
+    algorithm = :LD_LBFGS, verbose=1, starting_pars=pars0,
+    llhtolerance=1e-4)
 
-    # check of normalization
-    get_intesity(pars0, BmatMC_n, ModelBlocks)
-    get_intesity(minpars, BmatMC_n, ModelBlocks)
+# check of normalization
+get_intesity(pars0, BmatMC_n, ModelBlocks)
+get_intesity(minpars, BmatMC_n, ModelBlocks)
 
-    usual_minpars = minpars ./ abs.(extnd([sqrt(BmatMC[i,i]) for i in 1:size(BmatMC,1)],
-        get_parameter_map(ModelBlocks, Nwaves)))
-    push!(MINs,usual_minpars)
-end
-LLHs = LLH.(MINs)
-minpars = MINs[indmin(LLHs)];
+usual_minpars = minpars ./ abs.(extnd([sqrt(BmatMC[i,i]) for i in 1:size(BmatMC,1)],
+    get_parameter_map(ModelBlocks, Nwaves)))
 
 #####################################################################################
 #####################################################################################
@@ -221,19 +214,17 @@ SDM = normfact*pars_to_SDM(minpars, BmatFU, ModelBlocks)
 diag(SDM)
 
 minpars./SDM_to_pars(SDM/size(PsiRD,1), BmatFU, ModelBlocks)
-SDM_RD = let path = "/mnt/data/compass/2008/pwa_results/SDMs/0.100000-0.112853/"
-    v = readdlm(joinpath(path,"sdm92.re")) +
-        1im*readdlm(joinpath(path,"sdm92.im"))
-    # v[thresholds_filter,thresholds_filter]
-end
 
-diag(SDM_RD)
+path_to_SDM = "/mnt/data/compass/2008/pwa_results/SDMs/0.100000-0.112853/";
+SDM_RD = read_compass_SDM(joinpath(path_to_SDM,"sdm92."),
+    path_to_wavelist   = joinpath("src", "wavelist_formated.txt");
+    path_to_thresholds = joinpath("src","thresholds_formated.txt"),
+    M3pi = Meta.parse(mass_bin_name[1:4])/1000)
 
-SDM_RD_err = let path = "/localhome/mikhasenko/cernbox/tmp/pwa_from_scratch_data"
-    v = readdlm(joinpath(path,"0.100000-0.112853","sdm53-err.re")) +
-        1im*readdlm(joinpath(path,"0.100000-0.112853","sdm53-err.im"))
-    v[thresholds_filter,thresholds_filter]
-end
+SDM_RD_err = read_compass_SDM(joinpath(path_to_SDM,"sdm92-err."),
+    path_to_wavelist   = joinpath("src", "wavelist_formated.txt");
+    path_to_thresholds = joinpath("src","thresholds_formated.txt"),
+    M3pi = Meta.parse(mass_bin_name[1:4])/1000)
 
 minpars_rd = SDM_to_pars(SDM_RD/size(PsiRD,1), BmatFU, ModelBlocks)
 @time minpars_from_rd = minimize(LLH, LLH_and_GRAD!;

@@ -7,12 +7,9 @@ using DalitzPlotAnalysis: λ, change_basis, Z, WignerDϵ, WignerD, Wignerd, Cleb
 export swap_kin_parameters
 export fρ, ff2, fρ3, fσ, ff0_980, ff0_1500, BlttWskpf
 export compass_jmels_basis_psi
-# export COMPASS_wave
-#, COMPASS_waves, COMPASS_wave_short
-# export wavenames, wavesfile, Nwaves, thresholds_filter
 export get_wavelist, get_wavenames, get_wavebasis
-
-# export buildbasis
+#
+export read_compass_SDM
 
 mπ = 0.13956755; mπ2 = mπ^2;
 mK = 0.493677; mK2 = mK^2;
@@ -125,15 +122,8 @@ end
 isobarsV = [fσ,fρ,ff2,fρ3]
 isobarsS = [fσ,ff0_980,ff0_1500]
 
-# pwd()
-
-# basis = []
-# wavenames = []
-# Nwaves = 0
-# wavesfile = []
 
 # constract COMPASS basis
-
 function get_wavelist(path_to_wavelist; path_to_thresholds="", M3pi=3.0)
     (! isfile(path_to_wavelist)) && error("Cannot find $(path_to_wavelist)!")
 
@@ -217,108 +207,27 @@ function compass_jmels_basis_psi(;QNs::NTuple{5,Int}=error("give quantum numbers
            Z(QNs...,τ3[2],τ3[3], τ3[4],τ3[5])*fi(σ3)*sqrt(bw3)
 end
 
-#############################################################################
-#############################################################################
-#############################################################################
 
-# short_basis = []
-# let flat(lm,σ1,cosθ23,m1sq,m2sq,m3sq,s) = 1.0+0.0im
-#     push!(short_basis,flat)
-# end
-# for i in 2:Nwaves
-#     wn, name, J, P, M, ϵ, S, L = wavesfile[i,:]
-#     fi = (S ≥ 0) ? isobarsV[S+1] : isobarsS[1-S]
-#     S = (S≥0 ? S : 0)
-#     @eval function $(Symbol("sort_wave_$(wn)"))(lm,σ1,cosθ23,m1sq,m2sq,m3sq,s)
-# #         println("\nwave ",$J," ",$P," ",$M," ",$ϵ," ",$L," ",$S)
-#         # if (sqrt(σ1) < (sqrt(m2sq)+sqrt(m3sq))) || ((sqrt(σ1) > (sqrt(s)-sqrt(m1sq))))
-#         #     error("Check your masses. There is inconsitency, probably.")
-#         # end
-#         pars = change_basis(σ1,cosθ23,m1sq,m2sq,m3sq,s)
-#         σ3 = pars[1]; cosθ3 = pars[2]; cosθ12 = pars[3];
-#         θ23 = acos(cosθ23); θ3 = acos(cosθ3); θ21 = acos(-cosθ12);
-#
-#         R = 1/0.2024; #it was 5
-#         bw1 = ($L == 0) ? 1.0 : BlttWskpf[$L]($λ(s,σ1,m1sq)/(4s)*R^2)
-#         bw3 = ($L == 0) ? 1.0 : BlttWskpf[$L]($λ(s,σ3,m3sq)/(4s)*R^2)
-#
-#         # lm is fixed!
-#         rng_lm = min($S,$J);
-#         res_λ1 = Wignerd($(S),lm,0,θ23)*ClebschGordon(2*$(L),0,2*$(S),2*lm,2*$(J),2*lm)
-#         res_λ3 = 0.0im;
-#         for ν=-rng_lm:1:rng_lm
-#             res_λ3 += (ν%2==0 ? 1.0 : -1.0)*
-#                 Wignerd($(J), lm, ν, θ3 )*
-#                 Wignerd($(S),  ν, 0, θ21)*ClebschGordon(2*$(L),0,2*$(S),2*ν,2*$(J),2*ν)
-#         end
-#         res = sqrt((2*$(L)+1)*(2*$(S)+1)/(2*$(J)+1))*( #*WignerDϵ(($P==$ϵ),$J,$M,lm,0.0,0.0,0.0)
-#             res_λ1*$(fi)(σ1)*sqrt(bw1)+
-#             res_λ3*$(fi)(σ3)*sqrt(bw3)
-#         )
-#         return res
-#     end
-#     @eval push!(short_basis, $(Symbol("wave_$(wn)")))
-# end
+# It is a bit sloppy to repeat the same piece of threshold reading twice
+function read_compass_SDM(path_inclusing_sdmXXdot; path_to_wavelist="", path_to_thresholds="", M3pi=3.0)
+    (! isfile(path_to_wavelist)) && error("Cannot find $(path_to_wavelist)!")
 
-# function COMPASS_wave(i,s::Float64,σ1::Float64,
-#     cosθ1::Float64,ϕ1::Float64,cosθ23::Float64,ϕ23::Float64)
-#     (i <  1) && return 0;
-#     (i > Nwaves) && return 0;
-#     basis[i](σ1,cosθ1,ϕ1,cosθ23,ϕ23,mπ2,mπ2,mπ2,s)
-# end
+    wavesInFile = readdlm(path_to_wavelist)
 
-# function COMPASS_wave_short(i,lm,s::Float64,σ1::Float64,cosθ23::Float64)
-#     (i <  1) && return 0;
-#     (i > Nwaves) && return 0;
-#     short_basis[i](lm,σ1,cosθ23,mπ2,mπ2,mπ2,s)
-# end
+    thresholds = fill(0.0,size(wavesInFile,1))
+    if isfile(path_to_thresholds)
+        thf = readdlm(path_to_thresholds)
+        for v in zip(thf[:,1],thf[:,2])
+            thresholds[Int64(v[1])] = v[2]
+        end
+    else
+        warn("Do not consider thresholds!")
+    end
+    thresholds_filter = thresholds .< M3pi
+    SDM = readdlm(path_inclusing_sdmXXdot*"re") + 1im*readdlm(path_inclusing_sdmXXdot*"im")
 
-
-# function COMPASS_waves(s,σ1,cosθ1,ϕ1,cosθ23,ϕ23)
-#     m1sq = mπ2; m2sq = mπ2; m3sq = mπ2;
-#     # system 1 <-> 23
-#     Dϵ1 = [(M > J || λ > J) ? 0.0im : WignerDϵ(ϵ==1,J,M,λ,ϕ1,acos(cosθ1),0) for J=0:6, M=0:2, ϵ=0:1, λ=-3:3]
-#     D1  = [(λ > S) ? 0.0im : WignerD(S,λ,0,ϕ23,acos(cosθ23),0) for S=0:6, λ=-3:3]
-#     # Z functions
-#     Zϵf1 = Vector{Complex{Float64}}(Nwaves)
-#     Zϵf1[1] = 0.5+0.0im;
-#     iV = [f(σ1) for f in isobarsV]
-#     iS = [f(σ1) for f in isobarsS]
-#     R = 1/0.2024; #it was 5
-#     bw1 = [(L == 0) ? 1.0 : BlttWskpf[L](λ(s,σ1,m1sq)/(4s)*R^2) for L=0:6];
-#     for i in 2:Nwaves
-#         wn, name, J, P, M, ϵ, S, L = wavesfile[i,:]
-#         fi = (S ≥ 0) ? iV[S+1] : iS[1-S]
-#         S = (S≥0 ? S : 0)
-#         Zϵf1[i] = sum(ClebschGordon(L,0,S,lm,J,lm)*sqrt((2*L+1)*(2*S+1))*
-#                         Dϵ1[J+1,M+1,1+(ϵ==P),4+lm]*D1[1+S,4+lm]
-#                          for lm=-min(S,J):min(S,J))*
-#                 fi*sqrt(bw1[L+1]);
-#     end
-#     # system 3 <-> 12
-#     τ3 = Vector{Float64}(4)
-#     σ3,τ3[1],τ3[2],τ3[3],τ3[4] = change_basis(σ1,cosθ1,ϕ1,cosθ23,ϕ23,m1sq,m2sq,m3sq,s)
-#     τ3[3] *= -1; τ3[4] += π
-#     # functions
-#     Dϵ3 = [(M > J || λ > J) ? 0.0im : WignerDϵ(ϵ==1,J,M,λ,τ3[2],acos(τ3[1]),0) for J=0:6, M=0:2, ϵ=0:1, λ=-3:3]
-#     D3  = [(λ > S) ? 0.0im : WignerD(S,λ,0,τ3[4],acos(τ3[3]),0) for S=0:6, λ=-3:3]
-#     # Z functions
-#     Zϵf3 = Vector{Complex{Float64}}(Nwaves)
-#     Zϵf3[1] = 0.5+0.0im;
-#     iV .= [f(σ3) for f in isobarsV]
-#     iS .= [f(σ3) for f in isobarsS]
-#     bw3 = [(L == 0) ? 1.0 : BlttWskpf[L](λ(s,σ3,m3sq)/(4s)*R^2) for L=0:6];
-#     for i in 2:Nwaves
-#         wn, name, J, P, M, ϵ, S, L = wavesfile[i,:]
-#         fi = (S ≥ 0) ? iV[S+1] : iS[1-S]
-#         S = (S≥0 ? S : 0)
-#         Zϵf3[i] = sum(ClebschGordon(L,0,S,lm,J,lm)*sqrt((2*L+1)*(2*S+1))*
-#                             Dϵ3[J+1,M+1,1+(ϵ==P),4+lm]*D3[1+S,4+lm] for lm=-min(S,J):min(S,J))*
-#                         fi*sqrt(bw3[L+1]);
-#     end
-#     (Zϵf1 + Zϵf3)
-#     # Zϵf1
-# end
+    return SDM[thresholds_filter,thresholds_filter]
+end
 
 function swap_kin_parameters(s,τ1...)
     τ3 = collect(change_basis(τ1...,mπ2,mπ2,mπ2,s))
@@ -327,24 +236,5 @@ function swap_kin_parameters(s,τ1...)
     (τ3[5] > π) && (τ3[5] -= 2π)
     vcat([s],τ3)
 end
-
-# swap_kin_parameters(1.3,0.7,0.1,0.1,0.1,0.1)
-
-# COMPASS_waves(1.4,0.6,0.1,0.1,0.1,0.1) - [COMPASS_wave(i,1.4,0.6,0.1,0.1,0.1,0.1) for i in 1:88]
-# # WignerDϵ(true,1,1,1,0.1,0.1,0.0)
-# @time for k = 1:1000
-#     COMPASS_waves(1.4,0.6,0.1,0.1,0.1,0.1)
-# end
-# # # # # #
-# @time for k = 1:1000
-#     [COMPASS_wave(i,1.4,0.6,0.1,0.1,0.1,0.1) for i in 1:88]
-# end
-# #
-# using Traceur
-# @trace COMPASS_waves(1.4,0.6,0.1,0.1,0.1,0.1)
-#
-# using BenchmarkTools
-# @btime [COMPASS_wave(i,1.4,0.6,0.1,0.1,0.1,0.1) for i in 1:88]
-# @btime COMPASS_waves(1.4,0.6,0.1,0.1,0.1,0.1)
 
 end
