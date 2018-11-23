@@ -165,8 +165,6 @@ function get_wavebasis(wavelist::Array)
         end
         # special case
         wn, name, J, P, M, ϵ, S, L = wl
-        fi = (S ≥ 0) ? isobarsV[S+1] : isobarsS[1-S]
-        S = (S≥0 ? S : 0)
         push!(basis, get_compass_jmels_basis_psi(J,M,1*(P==ϵ),L,S))
     end
     return basis
@@ -203,8 +201,8 @@ function compass_jmels_basis_psi(;QNs::NTuple{5,Int}=error("give quantum numbers
     bw3 = (L == 0) ? 1.0 : BlttWskpf[L](λ(s,σ3,m3sq)/(4s)*R^2)
     #############
     # τ1_rev = collect(τ1); τ1_rev[4] *= -1; τ1_rev[5] += π  # compass `convension` (inconsistent, btw)
-    return Z(QNs...,τ1[2],τ1[3],-τ1[4],τ1[5]+π)*fi(σ1)*sqrt(bw1) +
-           Z(QNs...,τ3[2],τ3[3], τ3[4],τ3[5])*fi(σ3)*sqrt(bw3)
+    return Z(J,M,Pϵ,L,S,τ1[2],τ1[3],-τ1[4],τ1[5]+π)*fi(σ1)*sqrt(bw1) +
+           Z(J,M,Pϵ,L,S,τ3[2],τ3[3], τ3[4],τ3[5])*fi(σ3)*sqrt(bw3)
 end
 
 
