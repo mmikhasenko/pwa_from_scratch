@@ -5,8 +5,7 @@ path_wavelist = "src"
 path_to_working_folder = "data"
 list_of_files = ARGS[2:end]
 
-@show ARGS
-
+println("Starting with ARGS = ", ARGS)
 ######################################################
 using DelimitedFiles
 push!(LOAD_PATH,"src")
@@ -38,7 +37,7 @@ const PsiRD = read_precalc_basis(
 LLH, GRAD, LLH_and_GRAD!, HES = createLLHandGRAD(PsiRD, BmatMC, ModelBlocks);
 
 println("Start calculating LLHs")
-llhs = [LLH(readdlm(path_and_filename)) for path_and_filename in list_of_files]
-writedlm(joinpath(path_to_working_folder,"llh_attmpts_$(mass_bin_name)_$(tslice).txt"),
-    zip(list_of_files, llhs))
+llhs = [LLH(vcat(readdlm(path_and_filename)...)) for path_and_filename in list_of_files]
+sorted_list = sort(collect(zip(list_of_files, llhs)), by=x->x[2])
+writedlm(joinpath(path_to_working_folder,"llh_attmpts_$(mass_bin_name)_$(tslice).txt"), sorted_list)
 println("Done")
