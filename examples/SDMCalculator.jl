@@ -1,19 +1,23 @@
 # parameters
 mass_bin_name = ARGS[1]# "1540_1560"
+SDM_mass_bin_name = ARGS[2]
 tslice = "t1"
 path_wavelist = "src"
 path_to_working_folder = "data"
-list_of_files = ARGS[2:end] #Can i do this ?
+list_of_files = ARGS[3:end] #Can i do this ?
 
 #########################################################
 @show ARGS
 push!(LOAD_PATH,"src")
-print(typeof(mass_bin_name))
+
 using SDMHelper
 using PWAHelper
 using amplitudes_compass
 using DelimitedFiles
+using Plots
+using LinearAlgebra
 
+#pyplot()
 # set names
 for app in ["rd", "mc", "fu"]
     pwf = path_to_working_folder
@@ -44,7 +48,8 @@ const negϵ = [i for (i,ϵ) in enumerate(wavelist[:,6]) if ϵ=="-"]
 const ModelBlocks = [noϵ, posϵ, negϵ, negϵ]
 
 println("Start calculating SDMs")
-SDMs = []
+#Loop to calculate SDMs
+SDM = []
 for path_and_filename in list_of_files
     minpars = readdlm(path_and_filename);
     # calculate
@@ -55,3 +60,22 @@ for path_and_filename in list_of_files
     # push!(SDMs,normfact*pars_to_SDM(minpars, BmatFU, ModelBlocks))
     # as you see you also need to load/calculate size(PsiRD) and minpars.
 end
+
+#Compass SDM
+path_to_SDM = "/mnt/data/compass/2008/pwa_results/SDMs/0.100000-0.112853/";
+SDM_RD = read_compass_SDM(joinpath(path_to_SDM,"sdm$(SDM_mass_bin_name)."),
+    path_to_wavelist   = joinpath("src", "wavelist_formated.txt");
+    path_to_thresholds = joinpath("src","thresholds_formated.txt"),
+    M3pi = Meta.parse(mass_bin_name[1:4])/1000)
+
+
+SDM_RD_err = read_compass_SDM(joinpath(path_to_SDM,"sdm92-err."),
+    path_to_wavelist   = joinpath("src", "wavelist_formated.txt");
+    path_to_thresholds = joinpath("src","thresholds_formated.txt"),
+    M3pi = Meta.parse(mass_bin_name[1:4])/1000)
+
+#Plot (Assuming that there is only one file, can be put in the loop for SDM)
+plot(hcat(real.(diag(SDM_RD)), real.(diag(SDM))), lab=["F.H.-D.R." "S.S."],
+        xlab="# wave", title = "Diagonal of the SDM_$(mass_bin_name)_$(tslice)", size=(800,500))
+savefig(joinpath("plots","sdm_results_$(mass_bin_name)_$(tslice)_test.png"))
+#savefig(joinpath("plots","sdm_results$(mass_bin_name)_$(tslice)_test.pdf"))
