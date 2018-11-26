@@ -1,8 +1,9 @@
 # parameters
-mass_bin_name = "2320_2340"
+mass_bin_name = ARGS[1]
 tslice = "t1"
 path_wavelist = "src"
 path_to_working_folder = "data"
+Nbstrap_attempts = 5 # No. of bootstrap attempts
 
 ######################################################
 using DelimitedFiles
@@ -12,9 +13,9 @@ using FittingPWALikelihood
 using amplitudes_compass
 using PWAHelper
 using Random
-rng = MersenneTwister()
-serial= round(Int,rand(Random.seed!(rng))*100000)
-print(serial)
+
+###############################################################################
+# Model setting
 
 # read wavelist throw waves below threshol
 wavelist = get_wavelist(joinpath(path_wavelist,"wavelist_formated.txt");
@@ -30,6 +31,7 @@ const negϵ = [i for (i,ϵ) in enumerate(wavelist[:,6]) if ϵ=="-"]
 
 # Model description
 const ModelBlocks = [noϵ, posϵ, negϵ, negϵ]
+const Npar = get_npars(ModelBlocks)
 
 # integrals from MC data
 BmatMC = read_cmatrix(
@@ -47,37 +49,38 @@ const PsiRD = read_precalc_basis(
 for i in 1:size(PsiRD,2)
     PsiRD[:,i] .*= 1.0/sqrt(Bscale[i])
 end
+const Nd = size(PsiRD,1)
 
-global final_pars_ = Matrix(undef, 187, 50) #Difficulty guessing this size i.e the length
+###############################################################################
+# load the best minimum
+best_minimum = rand(Npar) # this line to be changed!
+
+###############################################################################
+final_pars_all_att = Array{Float64}(Npar+1, Nbstrap_attempts)
+const pseudoPsiRD = copy(PsiRD)
 #attempt at bootstrap
-const Nb = 5 # No. of bootstrap attempts
-     for b in 1:Nb
-        @show "Doing something"
-        Nd = size(PsiRD,1)
-        const _PsiRD = hcat([PsiRD[rand(1:Nd),:] for i in 1:Nd]...).'
-        # get functions to calculate LLH, derivative and hessian
-        LLH, GRAD, LLH_and_GRAD!, HES = createLLHandGRAD(_PsiRD, BmatMC, ModelBlocks);
+for b in 1:Nbstrap_attempts
+    @show "Doing something"
+    for e in 1:Nd
+        pseudoPsiRD[e,:] .= PsiRD[rand(1:Nd),:]
+    end
+    # get functions to calculate LLH, derivative and hessian
+    LLH, GRAD, LLH_and_GRAD!, HES = createLLHandGRAD(pseudoPsiRD, BmatMC, ModelBlocks);
 
-        # generate random parameters on a surface of intensity constraint
-        const Npar = get_npars(ModelBlocks)
-        const pars0 = rand(Npar);
-        pars0 .*= get_parameter_ranges(BmatMC, ModelBlocks)
-        normalize_pars!(pars0, BmatMC, ModelBlocks)
+    # fit
+    @time minpars = minimize(LLH, LLH_and_GRAD!;
+        algorithm = :LD_LBFGS, verbose=1, starting_pars=best_minimum,
+        llhtolerance = 1e-4)
 
-        # fit
-        # start vast algorithm which goes directly to the minimum
-        @time minpars = minimize(LLH, LLH_and_GRAD!;
-            algorithm = :LD_LBFGS, verbose=1, starting_pars=pars0,
-            llhtolerance = 1e-4)
+    # scale parameters back
+    parscale = abs.(extnd(sqrt.(Bscale), get_parameter_map(ModelBlocks, Nwaves)))
+    final_pars = minpars ./ parscale
+    # set up
+    final_pars_all_att[1,b] = LLH(final_pars)
+    final_pars_all_att[2:end,b] .= final_pars
+end
 
-            # scale parameters back
-
-            parscale = abs.(extnd(sqrt.(Bscale), get_parameter_map(ModelBlocks, Nwaves)))
-            final_pars = minpars ./ parscale
-            final_pars_[1,b]=LLH(final_pars)
-            final_pars_[2:end,b] = final_pars
-            final_pars_
-        end
-final_pars_
-println("Done! Saving...")
-writedlm(joinpath(path_to_working_folder,"llhfit_$(mass_bin_name)_$(tslice)_$(serial).txt"), final_pars_)
+# save results
+output_name = joinpath(path_to_working_folder,"llhfit_bootstrap_$(mass_bin_name)_$(tslice).txt")
+println("Done! Saving to $(output_name) ...")
+writedlm(output_name, final_pars_all_att)
