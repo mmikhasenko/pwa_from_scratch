@@ -1,6 +1,6 @@
 # parameters
-mass_bin_name = ARGS[1]# "1540_1560"
-SDM_mass_bin_name = ARGS[2]
+mass_bin_name =  ARGS[1] #"1540_1560"
+SDM_mass_bin_name =ARGS[2]
 tslice = "t1"
 path_wavelist = "src"
 path_to_working_folder = "data"
@@ -54,9 +54,9 @@ for path_and_filename in list_of_files
     minpars = readdlm(path_and_filename);
     # calculate
     SDM = normfact*pars_to_SDM(minpars, BmatFU, ModelBlocks)
-    for i in 1:size(SDM,1)
-    	println(SDM[i,i])
-    end
+    #for i in 1:size(SDM,1)
+    	#println(SDM[i,i])
+    #end
     # push!(SDMs,normfact*pars_to_SDM(minpars, BmatFU, ModelBlocks))
     # as you see you also need to load/calculate size(PsiRD) and minpars.
 end
@@ -69,13 +69,17 @@ SDM_RD = read_compass_SDM(joinpath(path_to_SDM,"sdm$(SDM_mass_bin_name)."),
     M3pi = Meta.parse(mass_bin_name[1:4])/1000)
 
 
-SDM_RD_err = read_compass_SDM(joinpath(path_to_SDM,"sdm92-err."),
+SDM_RD_err = read_compass_SDM(joinpath(path_to_SDM,"sdm$(SDM_mass_bin_name)-err."),
     path_to_wavelist   = joinpath("src", "wavelist_formated.txt");
     path_to_thresholds = joinpath("src","thresholds_formated.txt"),
     M3pi = Meta.parse(mass_bin_name[1:4])/1000)
 
 #Plot (Assuming that there is only one file, can be put in the loop for SDM)
-plot(hcat(real.(diag(SDM_RD)), real.(diag(SDM))), lab=["F.H.-D.R." "S.S."],
-        xlab="# wave", title = "Diagonal of the SDM_$(mass_bin_name)_$(tslice)", size=(800,500))
+#bar(hcat(real.(diag(SDM_RD)), real.(diag(SDM))),yerror=hcat(real.(diag(SDM_RD_err)),real.(diag(zeros(size(SDM_RD_err))))), lab=["F.H.-D.R." "S.S."],
+        #xlab="# wave", title = "Diagonal of the SDM_$(mass_bin_name)_$(tslice)", size=(800,500))
+bar(real.(diag(SDM)), lab="S.S", size=(800,500))
+scatter!(real.(diag(SDM_RD)),yerror=real.(diag(SDM_RD_err)), lab="F.H.-D.R.",
+                        xlab="# wave",ylab ="Magnitude", title = "Diagonal of the SDM_$(mass_bin_name)_$(tslice)", size=(800,500))
+
 savefig(joinpath("plots","sdm_results_$(mass_bin_name)_$(tslice)_test.png"))
 #savefig(joinpath("plots","sdm_results$(mass_bin_name)_$(tslice)_test.pdf"))
