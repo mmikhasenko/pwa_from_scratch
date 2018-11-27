@@ -37,46 +37,52 @@ const Npar = get_npars(ModelBlocks)
 BmatMC = read_cmatrix(
     joinpath(path_to_working_folder,"integrmat_$(mass_bin_name)_$(tslice)_mc.txt"));
 
+# get scale
+const Bscale = [sqrt(real(BmatMC[i,i])) for i in 1:size(BmatMC,1)];
+const parscale = abs.(extnd(Bscale, get_parameter_map(ModelBlocks, Nwaves)))
 # normalize B
-Bscale = [BmatMC[i,i] for i in 1:size(BmatMC,1)];
-for i=1:Nwaves, j=1:Nwaves
-    BmatMC[i,j] *= 1/sqrt(Bscale[i]*Bscale[j])
-end
+scaled_BmatMC = BmatMC ./ Bscale ./ transpose(Bscale)
+
 # load precalculated data array
 const PsiRD = read_precalc_basis(
     joinpath(path_to_working_folder,"functions_$(mass_bin_name)_$(tslice)_rd.txt"));
-# normalize Psi
-for i in 1:size(PsiRD,2)
-    PsiRD[:,i] .*= 1.0/sqrt(Bscale[i])
-end
+
 const Nd = size(PsiRD,1)
+# normalize Psi
+const scaled_PsiRD = PsiRD
+scaled_PsiRD ./= transpose(Bscale)
+# for i in 1:size(PsiRD,2)
+#     scaled_PsiRD[:,i] .*= 1.0/Bscale[i]
+# end
 
 ###############################################################################
 # load the best minimum
-best_minimum = rand(Npar) # this line to be changed!
+path_and_filename = split(readline("data/llh_attmpts_$(mass_bin_name)_$(tslice).txt"),"\t")[1]
+bestminpars = readdlm(path_and_filename)
+best_minimum = vcat(bestminpars...)
+best_minimum .*= parscale
 
 ###############################################################################
 final_pars_all_att = Array{Float64}(Npar+1, Nbstrap_attempts)
-const pseudoPsiRD = copy(PsiRD)
+const scaled_pseudoPsiRD = copy(scaled_PsiRD)
 #attempt at bootstrap
 for b in 1:Nbstrap_attempts
     @show "Doing something"
     for e in 1:Nd
-        pseudoPsiRD[e,:] .= PsiRD[rand(1:Nd),:]
+        scaled_pseudoPsiRD[e,:] .= scaled_PsiRD[rand(1:Nd),:]
     end
     # get functions to calculate LLH, derivative and hessian
-    LLH, GRAD, LLH_and_GRAD!, HES = createLLHandGRAD(pseudoPsiRD, BmatMC, ModelBlocks);
+    scaled_LLH, scaled_GRAD, scaled_LLH_and_GRAD!, scaled_HES =
+        createLLHandGRAD(scaled_pseudoPsiRD, scaled_BmatMC, ModelBlocks);
 
     # fit
-    @time minpars = minimize(LLH, LLH_and_GRAD!;
+    @time minpars = minimize(scaled_LLH, scaled_LLH_and_GRAD!;
         algorithm = :LD_LBFGS, verbose=1, starting_pars=best_minimum,
         llhtolerance = 1e-4)
-
+    # calculate LLH
+    final_pars_all_att[1,b] = scaled_LLH(minpars)
     # scale parameters back
-    parscale = abs.(extnd(sqrt.(Bscale), get_parameter_map(ModelBlocks, Nwaves)))
     final_pars = minpars ./ parscale
-    # set up
-    final_pars_all_att[1,b] = LLH(final_pars)
     final_pars_all_att[2:end,b] .= final_pars
 end
 
