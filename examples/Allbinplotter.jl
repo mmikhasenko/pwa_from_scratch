@@ -15,7 +15,8 @@ using Plots
 using LinearAlgebra
 using DelimitedFiles
 
-global Diagonal_element = Array{Float64}(100)
+#global Diagonal_element = Array{Float64}(100)
+global Diagonal_element = Array{Float64}(100, Nwave_extended)
 global m_3pi = Array{Float64}(100)
 ###############################################################################
 global z = 1
@@ -60,22 +61,26 @@ for i in 0.5:0.02:2.48
 
     threshold_mask = get_threshold_mask(joinpath(path_wavelist,"thresholds_formated.txt"), M3pi, Nwave_extended)
     SDM_enlarged=enlarge_with_zeros!(SDM,threshold_mask)
-
-    Diagonal_element[z]=SDM_enlarged[2,2]
+    for g in 1:88
+        Diagonal_element[z,g]=SDM_enlarged[g,g]
+    end
     m_3pi[z]= i + 0.015
     z = z+1
     @show z
 
 end
 
-# Plotting the results
+wavelist = readdlm(joinpath("src","wavelist_formated.txt"))
 
+# Plotting the results
 x = m_3pi
 dxh = (x[2]-x[1])/2  # 10 MeV
 new_x = [x[1]-dxh, (x+dxh)...] #
-plot(new_x, Diagonal_element, seriestype=:stepbins, fill_between=fill(0,size(transpose(second_element),1)),
-            lab="1-(1++)0+rhopiS ", lw=0.5, lc=:black,xticks = 0:0.2:10)
 
+for i in 1:88
+    plot!(new_x, Diagonal_element[:,i], seriestype=:stepbins, fill_between=fill(0,size(transpose(second_element),1)),
+                lab="$(wavelist[i,2])", lw=0.5, lc=:black,xticks = 0:0.2:10,size(800,500),legend = :best,legendfontsize = 5 )
+end
 #bar(transpose(massbin),transpose(second_element),xticks = 0:0.2:10,size=(800,500),
 #            xlab="M_(3pi)",ylab ="Magnitude", title = "SDM[2,2] for all bins")
-savefig(joinpath("plots/sdm_results/final","sdm_[2,2]_$(tslice)_test.png"))
+savefig(joinpath("plots/sdm_results/final","sdm_all_diag_$(tslice)_test.png"))
