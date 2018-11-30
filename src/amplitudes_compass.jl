@@ -8,6 +8,7 @@ export swap_kin_parameters
 export fρ, ff2, fρ3, fσ, ff0_980, ff0_1500, BlttWskpf
 export compass_jmels_basis_psi
 export get_wavelist, get_wavenames, get_wavebasis
+export get_threshold_mask
 #
 export read_compass_SDM
 
@@ -129,16 +130,11 @@ function get_wavelist(path_to_wavelist; path_to_thresholds="", M3pi=3.0)
 
     wavesInFile = readdlm(path_to_wavelist)
 
-    thresholds = fill(0.0,size(wavesInFile,1))
-    if isfile(path_to_thresholds)
-        thf = readdlm(path_to_thresholds)
-        for v in zip(thf[:,1],thf[:,2])
-            thresholds[Int64(v[1])] = v[2]
-        end
-    else
-        warn("Do not consider thresholds!")
-    end
-    thresholds_filter = thresholds .< M3pi
+    !(isfile(path_to_thresholds)) && warn("Do not consider thresholds!")
+    thresholds_filter = isfile(path_to_thresholds) ?
+        get_threshold_mask(path_to_thresholds, M3pi, wavesInFile) :
+        fill(true,size(wavesInFile,1))
+
     wavesfile = wavesInFile[thresholds_filter,:]
 
     return wavesfile
@@ -151,6 +147,16 @@ end
 function get_wavenames(path_to_wavelist; path_to_thresholds="", M3pi=3.0)
     wavelist = get_wavelist(path_to_wavelist; path_to_thresholds=path_to_thresholds, M3pi=M3pi);
     get_wavenames(wavelist)
+end
+
+function get_threshold_mask(path_to_thresholds, M3pi, returnedSize)
+    thresholds = fill(0.0,returnedSize)
+    thf = readdlm(path_to_thresholds)
+    for v in zip(thf[:,1],thf[:,2])
+        thresholds[Int64(v[1])] = v[2]
+    end
+    thresholds_mask = thresholds .< M3pi
+    return thresholds_mask
 end
 
 function get_wavebasis(wavelist::Array)

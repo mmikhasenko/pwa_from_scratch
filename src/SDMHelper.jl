@@ -8,6 +8,7 @@ using LinearAlgebra
 export SDM_to_pars, pars_to_SDM
 export write_cmatrix, read_cmatrix
 export constract_values
+export enlarge_with_zeros!
 
 function pars_to_SDM(pars, Bmat, block_masks)
     Tmap = get_parameter_map(block_masks, size(Bmat,1))
@@ -55,5 +56,18 @@ function read_cmatrix(fin)
     ld[:,1:Nh] + 1im .* ld[:,(Nh+1):end]
 end
 
+function enlarge_with_zeros!(SDM_new,SDM_old,thresholds_mask)
+    size(SDM_new,1) != length(thresholds_mask) && error("Check size of SDM_new")
+    size(SDM_old,1) != sum(thresholds_mask) && error("Check size of SDM_old")
+    SDM_new[thresholds_mask,thresholds_mask] .= SDM_old
+    return
+end
+
+function enlarge_with_zeros!(SDM_old,thresholds_mask)
+    size(SDM_old,1) != sum(thresholds_mask) && error("Check size of SDM_old")
+    SDM_new = fill(0.0im, length(thresholds_mask), length(thresholds_mask))
+    SDM_new[thresholds_mask,thresholds_mask] .= SDM_old
+    return SDM_new
+end
 
 end
