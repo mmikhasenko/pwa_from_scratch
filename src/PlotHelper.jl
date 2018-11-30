@@ -1,5 +1,6 @@
 module PlotHelper
 using Plots
+using Statistics
 
 export plotBSTsample, saveBSTSplot, plotBSTsummary, plotPolarSDM
 export format_wavename
@@ -33,6 +34,21 @@ function saveBSTSplot(fout, SDMs, SDM, SDM_RD, SDM_RD_err)
     end
     run(`pdfunite $onames $fout`)
     run(`rm $onames`)
+end
+
+
+function construct_values(ind, SDMs, SDM, SDM_RD, SDM_RD_err)
+    bts = [real(s[ind,ind]) for s in SDMs]
+    v_main = real(SDM[ind,ind])
+    v_off = real(SDM_RD[ind,ind])
+    v_off_err = real(SDM_RD_err[ind,ind])
+    v_qnt = quantile(bts,[0.16,0.84]) # sigma to every direction
+    [ind v_main v_off v_off_err v_qnt...]
+end
+
+function plotBSTsummary(SDMs, SDM, SDM_RD, SDM_RD_err; tosort=false, toannotate=false)
+    combres = vcat([construct_values(i, SDMs, SDM, SDM_RD, SDM_RD_err) for i in 1:size(SDM,1)]...);
+    plotBSTsummary(combres; tosort=tosort, toannotate=toannotate)
 end
 
 function plotBSTsummary(combres; tosort=false, toannotate=false)

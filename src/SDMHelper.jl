@@ -56,14 +56,4 @@ function read_cmatrix(fin)
 end
 
 
-function constract_values(ind, SDMs, SDM, SDM_RD, SDM_RD_err)
-    bts = [real(s[ind,ind]) for s in SDMs]
-    v_main = real(SDM[ind,ind])
-    v_off = real(SDM_RD[ind,ind])
-    v_off_err = real(SDM_RD_err[ind,ind])
-    v_qnt = quantile(bts,[0.16,0.84]) # sigma to every direction
-    [ind v_main v_off v_off_err v_qnt...]
-end
-
-
 end
