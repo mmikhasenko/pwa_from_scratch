@@ -132,8 +132,7 @@ function get_wavelist(path_to_wavelist; path_to_thresholds="", M3pi=3.0)
 
     !(isfile(path_to_thresholds)) && warn("Do not consider thresholds!")
     thresholds_filter = isfile(path_to_thresholds) ?
-        get_threshold_mask(path_to_thresholds, M3pi, wavesInFile) :
-        fill(true,size(wavesInFile,1))
+        get_threshold_mask(path_to_thresholds, M3pi, size(wavesInFile,1)) : fill(true,  size(wavesInFile,1))
 
     wavesfile = wavesInFile[thresholds_filter,:]
 
@@ -150,7 +149,7 @@ function get_wavenames(path_to_wavelist; path_to_thresholds="", M3pi=3.0)
 end
 
 function get_threshold_mask(path_to_thresholds, M3pi, returnedSize)
-    thresholds = fill(0.0,returnedSize)
+    thresholds = fill(0.0 , returnedSize)
     thf = readdlm(path_to_thresholds)
     for v in zip(thf[:,1],thf[:,2])
         thresholds[Int64(v[1])] = v[2]

@@ -59,10 +59,11 @@ function plotBSTsummary(combres; tosort=false, toannotate=false)
     tosort && plot!(xaxis=nothing)
     toannotate && annotate!([(i+0.4,mat[i,6]+50,text(Int64(mat[i,1]),4)) for i in 1:Nw])
     scatter!(mat[:,3], yerr=mat[:,4], xerr=[0.5 for i in 1:size(mat,1)],
-        m=(1, stroke(0.0)), lab="official fit")
+        m=(1.5,:orange, :d, stroke(0.0)),lab="")
+    scatter!(mat[:,3],m=(1.5,:orange, :d, stroke(0.0)), lab="official fit")
     scatter!(mat[:,2], m=(1.5, :red, :d, stroke(0.0)), lab="main fit")
+    #scatter!(mat[:,3],m=(1.5,:orange, :d, stroke(0.0)), lab="official fit")
 end
-
 
 function format_wavename(name)
     name == "flat" && return "\$\\mathrm{FLAT}\$"
