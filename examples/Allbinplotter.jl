@@ -14,10 +14,13 @@ using Random
 using Plots
 using LinearAlgebra
 using DelimitedFiles
+using Statistics
 
 #global Diagonal_element = Array{Float64}(100)
 global Diagonal_element = Array{Float64}(100, Nwave_extended)
 global m_3pi = Array{Float64}(100)
+global v_qnt = [Array{Complex{Float64}}(undef,88,500) for idx in 1:100]
+#global bts = Array{Float64}(undef,88,500)
 ###############################################################################
 global z = 1
 for i in 0.5:0.02:2.48
@@ -64,23 +67,60 @@ for i in 0.5:0.02:2.48
     for g in 1:88
         Diagonal_element[z,g]=SDM_enlarged[g,g]
     end
-    m_3pi[z]= i + 0.015
+
+    bootstrap_file = "data/llhfit_bootstrap_$(mass_bin_name)_$(tslice).txt"
+    BootstrapResults = readdlm(bootstrap_file)
+    Nbstrap_attempts =vcat(size(BootstrapResults[1,:])...)[1]
+    SDMs = [Array{Complex{Float64}}(undef, Nwave_extended,Nwave_extended) for idx in 1:500]
+    @time for b in 1:500
+        _br = BootstrapResults[2:end,b]
+        SDMs[b] .= enlarge_with_zeros!(normfact*pars_to_SDM(_br, BmatFU, ModelBlocks),threshold_mask)
+    end
+    bts = Array{Float64}(undef,88,500)
+    for g in 1:88
+        bts[g,:] .= [real(s[g,g]) for s in SDMs]
+    end
+    v_qnt[z] .= bts
+    m_3pi[z]= i .+ 0.015
     z = z+1
     @show z
 
 end
 
 wavelist = readdlm(joinpath("src","wavelist_formated.txt"))
+Diagonal_element
 
-# Plotting the results
-x = m_3pi
-dxh = (x[2]-x[1])/2  # 10 MeV
-new_x = [x[1]-dxh, (x+dxh)...] #
+#global err = Array{Float64}(100, 500)
 
-for i in 1:88
-    plot!(new_x, Diagonal_element[:,i], seriestype=:stepbins, fill_between=fill(0,size(transpose(second_element),1)),
-                lab="$(wavelist[i,2])", lw=0.5, lc=:black,xticks = 0:0.2:10,size(800,500),legend = :best,legendfontsize = 5 )
+for j in 2:88
+        global err = Array{Float64}(100, 500)
+        for i in 1:100
+            err[i,:]=real.(v_qnt[i][j,:])
+        end
+
+        qtls = Array{Float64}(100, 2)
+        for i in 1:100
+            qtls[i,:] .= quantile(err[i,:],[0.16,0.84])
+        end
+
+        # Plotting the results
+        x = m_3pi - 0.015
+        dxh = (x[2]-x[1])/2  # 10 MeV
+        new_x = [x[1]-dxh, (x+dxh)...]
+        #for i in 1:100
+            #plot(xlab="# wave", ylab="Wave Intensity, SDM[#,#]",size(800,500))
+            plot(new_x, Diagonal_element[:,j], seriestype=:stepbins,fill_between=fill(0,size(Diagonal_element,1)),
+                                    lab="$(wavelist[j,2])", lw=0.25, lc=:black,xticks = 0:0.2:10,size(800,500)
+                                    ,legend = :best,legendfontsize = 5,m=(1.5,:black, stroke(0.0)))
+            # bar!(new_x,err, lab="",fillrange=err[:,2],fillalpha=0.02, c=:orange ,l=nothing)
+            bar!(x,qtls[:,1], lab="Bootstrap Quantiles",fillrange=qtls[:,2],fillalpha=0.8, c=:orange
+                    ,l=nothing,xlab="M3pi (GeV)", ylab="Events/20MeV",size(800,500),title = "$(wavelist[j,2])")
+            # bar!(new_x,err[:,1], lab="bstrap quantiles",fillrange=err[:,2],fillalpha=0.2, c=:orange ,l=nothing,size(800,500))
+            #plot(new_x, Diagonal_element[:,2], seriestype=:stepbins,
+                                    #            lab="Bootstrap errors", lw=0.5, lc=:black,xticks = 0:0.2:10,size(800,500)
+                                    #            ,legend = :best,legendfontsize = 5,m=(1.5,:orange, :d, stroke(0.0)) )
+        #end
+        #bar(transpose(massbin),transpose(second_element),xticks = 0:0.2:10,size=(800,500),
+        #            xlab="M_(3pi)",ylab ="Magnitude", title = "SDM[2,2] for all bins")
+        savefig(joinpath("plots/sdm_results/final/allwaves/with_quantiles","sdm_[$(j),$(j)]_$(tslice)_with_quantile.pdf"))
 end
-#bar(transpose(massbin),transpose(second_element),xticks = 0:0.2:10,size=(800,500),
-#            xlab="M_(3pi)",ylab ="Magnitude", title = "SDM[2,2] for all bins")
-savefig(joinpath("plots/sdm_results/final","sdm_all_diag_$(tslice)_test.png"))
