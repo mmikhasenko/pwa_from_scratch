@@ -16,7 +16,7 @@ const BmatMC = let
 
     println("1. load data")
     @time PsiMC = read_precalc_basis(
-        joinpath(path_to_working_folder,"functions_$(mass_bin_name)_$(tslice)_mc.txt"));
+        joinpath(path_to_working_folder,"functions_$(mass_bin_name)_$(tslice)_mc.bin"));
 
     println("2. calculate sums")
     Nd, Nwaves = size(PsiMC)
@@ -27,4 +27,4 @@ end
 
 println("3. save the result")
 write_cmatrix(BmatMC,
-    joinpath(path_to_working_folder,"integrmat_$(mass_bin_name)_$(tslice)_mc.txt"))
+    joinpath(path_to_working_folder,"integrmat_$(mass_bin_name)_$(tslice)_mc.bin"))
