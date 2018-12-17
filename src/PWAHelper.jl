@@ -16,7 +16,11 @@ export calculate_integrals_from_precalc_basis
 
 
 function precalculate_compass_basis(basis,fin,fout,Fout)
-    mm = readdlm(fin); Nd = size(mm,1)
+    io = open(fin,"r")
+    Nd = read(io,Int32)
+    C = Array{Float64}(undef,6,Nd)
+    mm = transpose(read!(io,C))
+    #mm = readdlm(fin); Nd = size(mm,1)
     m2 = fill(0.0im, Nd, length(basis))
     @progress for e in 1:Nd
         for (i,b) in enumerate(basis)
@@ -25,8 +29,8 @@ function precalculate_compass_basis(basis,fin,fout,Fout)
     end
     #writedlm(fout,[real(m2) imag(m2)])
     io = open(Fout,"w")
-    write(io,Nd)
-    write(io,length(basis)+length(basis))
+    write(io,trunc(Int64,Nd))
+    write(io,trunc(Int64,length(basis)+length(basis)))
     write(io,[real(m2) imag(m2)])
     close(io)
 end
@@ -37,7 +41,7 @@ function read_precalc_basis(fname)
     C = Array{Float64}(undef,r,c)
 
     ld = read!(io,C)
-    #ld = readdlm(fname) 
+    #ld = readdlm(fname)
     Nh = div(size(ld,2),2)
     return ld[:,1:Nh]+1im*ld[:,(Nh+1):end]
 end
