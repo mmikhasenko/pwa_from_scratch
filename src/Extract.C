@@ -183,9 +183,9 @@ int ExtractMC(const char* file, bool full, double tprime_cut_L, double tprime_cu
     tree->GetEntry(i);
     if (!full && accepted_reco != 1){
       if((i+1)==nentries){
-      BinFile->write((char *)&l, sizeof(int));
       first=false;
       if(second) continue;
+      BinFile->write((char *)&l, sizeof(int));
       second=true;
       i=0;
     }continue;}
@@ -201,14 +201,18 @@ int ExtractMC(const char* file, bool full, double tprime_cut_L, double tprime_cu
     double tprime_here = tprime(p0, pX);
     if (tprime_here < tprime_cut_L || tprime_here > tprime_cut_H){
       if((i+1)==nentries){
-      BinFile->write((char *)&l, sizeof(int));
       first=false;
       if(second) continue;
+      BinFile->write((char *)&l, sizeof(int));
       second=true;
       i=0;
     }continue;}
 
-    if(first) l++;
+    if(first){if((i+1)==nentries){
+    first=false;
+    BinFile->write((char *)&l, sizeof(int));
+    i=0;
+    }l++;}
     else print_ph_parameters(p0,p2,p1,p3,BinFile);
   }
 
@@ -293,9 +297,9 @@ int ExtractRD(const char* file, double tprime_cut_L, double tprime_cut_H,std::of
         !IsPlanar_extended
         ){
           if((i+1) == nentries){
-          BinFile->write((char *)&k, sizeof(int));
           first=false;
           if(second) continue;
+          BinFile->write((char *)&k, sizeof(int));
           second=true;
           i=0;
         }continue;}
@@ -312,14 +316,19 @@ int ExtractRD(const char* file, double tprime_cut_L, double tprime_cut_H,std::of
 
     if (tprime_here < tprime_cut_L || tprime_here > tprime_cut_H) {
       if((i+1)==nentries) {
-      BinFile->write((char *)&k, sizeof(int));
       first =false;
       if(second) continue;
+      BinFile->write((char *)&k, sizeof(int));
       second=true;
       i=0;
     }continue;}
 
-    if(first) k++;
+    if(first){
+      if((i+1) == nentries){
+        first=false;
+        BinFile->write((char *)&k, sizeof(int));
+        i=0;
+    }k++;}
     else print_ph_parameters(p0,p2,p3,p1,BinFile);
 
   }
