@@ -47,10 +47,23 @@ function SDM_to_pars(SDM, Bmat, block_masks)
 end
 
 function write_cmatrix(sdm, fout)
+    #io = open(fout,"w")
+    #write(io,size(sdm,1))
+    #write(io,size(sdm,1)+size(sdm,1))
+    #write(io,[real(sdm) imag(sdm)])
+    #close(io)
+
     writedlm(fout, [real(sdm) imag(sdm)])
 end
 
 function read_cmatrix(fin)
+    #io = open(fin,"r")
+    #r=read(io,Int64)
+    #c=read(io,Int64)
+    #C = Array{Float64}(undef,r,c)
+
+    #ld = read!(io,C)
+
     ld = readdlm(fin)
     Nh = div(size(ld,2),2)
     ld[:,1:Nh] + 1im .* ld[:,(Nh+1):end]

@@ -100,7 +100,7 @@ void apply_to_all(std::function<void(double*)> f, std::vector<double*> arr) {
 }
 
 
-void print_ph_parameters(double p0[], double p1[], double p2[], double p3[]) {
+void print_ph_parameters(double p0[], double p1[], double p2[], double p3[],std::ofstream *BinFile) {
 
   double p123[4], p23[4];
   double pt[] = {0,0,0,MASSPROT};
@@ -141,11 +141,17 @@ void print_ph_parameters(double p0[], double p1[], double p2[], double p3[]) {
   double ph23=phi(p2);
 
 
-  std::cout << s << " " << sigma1 << " " << theta1 << " " << ph1 << " " << th23 << " " << ph23 << "\n";
-
+  //std::cout << s << " " << sigma1 << " " << theta1 << " " << ph1 << " " << th23 << " " << ph23 << "\n";
+  // std::cout << s << sigma1 << theta1 << ph1 << th23 << ph23 <<;
+  BinFile->write((char *)&s, sizeof(double));
+  BinFile->write((char *)&sigma1, sizeof(double));
+  BinFile->write((char *)&theta1, sizeof(double));
+  BinFile->write((char *)&ph1, sizeof(double));
+  BinFile->write((char *)&th23, sizeof(double));
+  BinFile->write((char *)&ph23, sizeof(double));
 }
 
-int ExtractMC(const char* file, bool full, double tprime_cut_L, double tprime_cut_H) {
+int ExtractMC(const char* file, bool full, double tprime_cut_L, double tprime_cut_H, std::ofstream * BinFile) {
   double p0[4],p1[4],p2[4],p3[4];
   TFile *fin = TFile::Open(file); if (!fin) return 1;
   TTree *tree = (TTree*)fin->Get("USR51MCout"); if (!tree) return 1;
@@ -170,10 +176,19 @@ int ExtractMC(const char* file, bool full, double tprime_cut_L, double tprime_cu
   int accepted_reco;
 
   tree->SetBranchAddress("accepted_reco", &accepted_reco);
-
+  int l=0;
   for (int i=0;i<nentries;i++) {
+    static bool first=true;
+    static bool second =false;
     tree->GetEntry(i);
-    if (!full && accepted_reco != 1) continue;
+    if (!full && accepted_reco != 1){
+      if((i+1)==nentries){
+      first=false;
+      if(second) continue;
+      BinFile->write((char *)&l, sizeof(int));
+      second=true;
+      i=0;
+    }continue;}
 
     // process with event
 
@@ -184,23 +199,52 @@ int ExtractMC(const char* file, bool full, double tprime_cut_L, double tprime_cu
 
     double pX[3]; add(p1,p2,pX); add(p3,pX,pX);
     double tprime_here = tprime(p0, pX);
-    if (tprime_here < tprime_cut_L || tprime_here > tprime_cut_H) continue;
+    if (tprime_here < tprime_cut_L || tprime_here > tprime_cut_H){
+      if((i+1)==nentries){
+      first=false;
+      if(second) continue;
+      BinFile->write((char *)&l, sizeof(int));
+      second=true;
+      i=0;
+    }continue;}
 
-    print_ph_parameters(p0,p2,p1,p3);
-
+    if(first){if((i+1)==nentries){
+    first=false;
+    BinFile->write((char *)&l, sizeof(int));
+    i=0;
+    }l++;}
+    else print_ph_parameters(p0,p2,p1,p3,BinFile);
   }
 
+  // for (int i=0;i<nentries;i++) {
+  //   tree->GetEntry(i);
+  //   if (!full && accepted_reco != 1) continue;
+  //
+  //   // process with event
+  //
+  //   p0[3] = energy(p0,MASSPISQ);
+  //   p1[3] = energy(p1,MASSPISQ);
+  //   p2[3] = energy(p2,MASSPISQ);
+  //   p3[3] = energy(p3,MASSPISQ);
+  //
+  //   double pX[3]; add(p1,p2,pX); add(p3,pX,pX);
+  //   double tprime_here = tprime(p0, pX);
+  //   if (tprime_here < tprime_cut_L || tprime_here > tprime_cut_H) continue;
+  //
+  //   print_ph_parameters(p0,p2,p1,p3,BinFile);
+  //
+  // }
   return 0;
 
 }
 
 
-int ExtractRD(const char* file, double tprime_cut_L, double tprime_cut_H) {
+int ExtractRD(const char* file, double tprime_cut_L, double tprime_cut_H,std::ofstream *BinFile) {
   double p0[4],p1[4],p2[4],p3[4];
   TFile *fin = TFile::Open(file); if (!fin) return 1;
   TTree *tree = (TTree*)fin->Get("USR52mb"); if (!tree) return 1;
 
-
+  int k=0;
   long nentries = tree->GetEntries();
 
   tree->SetBranchAddress("px0", &p0[0]);
@@ -235,6 +279,8 @@ int ExtractRD(const char* file, double tprime_cut_L, double tprime_cut_H) {
   tree->SetBranchAddress("IsPlanar_extended",   &IsPlanar_extended);
 
   for (int i=0;i<nentries;i++) {
+    static bool first = true;
+    static bool second = false;
     tree->GetEntry(i);
     if (
         !IsTriggered ||
@@ -249,7 +295,14 @@ int ExtractRD(const char* file, double tprime_cut_L, double tprime_cut_H) {
         !CorrectNbrRPDTracks ||
         // IsPlanar != 0 ||
         !IsPlanar_extended
-        ) continue;
+        ){
+          if((i+1) == nentries){
+          first=false;
+          if(second) continue;
+          BinFile->write((char *)&k, sizeof(int));
+          second=true;
+          i=0;
+        }continue;}
 
     // process with event
 
@@ -261,9 +314,22 @@ int ExtractRD(const char* file, double tprime_cut_L, double tprime_cut_H) {
     double pX[3]; add(p1,p2,pX); add(p3,pX,pX);
     double tprime_here = tprime(p0, pX);
 
-    if (tprime_here < tprime_cut_L || tprime_here > tprime_cut_H) continue;
+    if (tprime_here < tprime_cut_L || tprime_here > tprime_cut_H) {
+      if((i+1)==nentries) {
+      first =false;
+      if(second) continue;
+      BinFile->write((char *)&k, sizeof(int));
+      second=true;
+      i=0;
+    }continue;}
 
-    print_ph_parameters(p0,p2,p3,p1);
+    if(first){
+      if((i+1) == nentries){
+        first=false;
+        BinFile->write((char *)&k, sizeof(int));
+        i=0;
+    }k++;}
+    else print_ph_parameters(p0,p2,p3,p1,BinFile);
 
   }
 
@@ -271,7 +337,7 @@ int ExtractRD(const char* file, double tprime_cut_L, double tprime_cut_H) {
 }
 
 int Extract(const char* file, char flag,
-            double tprime_cut_L, double tprime_cut_H) {
+            double tprime_cut_L, double tprime_cut_H, std::ofstream *BinFile) {
   if (flag != 'D' && flag != 'M' && flag != 'F') {
     std::cout << "There are two options for the second argument"
               << "\n\t'D' for real data"
@@ -280,14 +346,15 @@ int Extract(const char* file, char flag,
               << "\nYou gave --" << flag << "--\n";
     return 0;
   }
-  if (flag == 'D') ExtractRD(file,        tprime_cut_L, tprime_cut_H);
-  if (flag == 'M') ExtractMC(file, false, tprime_cut_L, tprime_cut_H);
-  if (flag == 'F') ExtractMC(file, true,  tprime_cut_L, tprime_cut_H);
+  if (flag == 'D') ExtractRD(file,        tprime_cut_L, tprime_cut_H,BinFile);
+  if (flag == 'M') ExtractMC(file, false, tprime_cut_L, tprime_cut_H,BinFile);
+  if (flag == 'F') ExtractMC(file, true,  tprime_cut_L, tprime_cut_H,BinFile);
   return 0;
 }
 
 int main(int argv, char **argc) {
-
+  std::ofstream BinFile;
+  BinFile.open(argc[5],std::ios::out | std::ios::binary);
   if (argv < 3) {
     std::cerr << "Arguments are needed!\n"
              << "Example:\n\t ./Extract datafile.root 'D'\n";
@@ -300,7 +367,9 @@ int main(int argv, char **argc) {
   const char* file = argc[1];
   char flag = argc[2][0];
 
-  Extract(file, flag, tprime_cut_L, tprime_cut_H);
+  Extract(file, flag, tprime_cut_L, tprime_cut_H,&BinFile);
+
+  BinFile.close();
 
   return 0.0;
 }

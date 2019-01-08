@@ -15,18 +15,33 @@ export get_parameter_ranges, normalize_pars!
 export calculate_integrals_from_precalc_basis
 
 
-function precalculate_compass_basis(basis,fin,fout)
-    mm = readdlm(fin); Nd = size(mm,1)
+function precalculate_compass_basis(basis,fin,fout,Fout)
+    io = open(fin,"r")
+    Nd = read(io,Int32)
+    C = Array{Float64}(undef,6,Nd)
+    mm = transpose(read!(io,C))
+    #mm = readdlm(fin); Nd = size(mm,1)
     m2 = fill(0.0im, Nd, length(basis))
     @progress for e in 1:Nd
         for (i,b) in enumerate(basis)
             m2[e,i] = b(@view(mm[e,2:end])..., mm[e,1]);
         end
     end
-    writedlm(fout,[real(m2) imag(m2)])
+    #writedlm(fout,[real(m2) imag(m2)])
+    io = open(Fout,"w")
+    write(io,trunc(Int64,Nd))
+    write(io,trunc(Int64,length(basis)+length(basis)))
+    write(io,[real(m2) imag(m2)])
+    close(io)
 end
 function read_precalc_basis(fname)
-    ld = readdlm(fname, Float64)
+    io = open(fname,"r")
+    r=read(io,Int64)
+    c=read(io,Int64)
+    C = Array{Float64}(undef,r,c)
+
+    ld = read!(io,C)
+    #ld = readdlm(fname)
     Nh = div(size(ld,2),2)
     return ld[:,1:Nh]+1im*ld[:,(Nh+1):end]
 end
