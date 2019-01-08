@@ -15,33 +15,31 @@ export get_parameter_ranges, normalize_pars!
 export calculate_integrals_from_precalc_basis
 
 
-function precalculate_compass_basis(basis,fin,fout,Fout)
+function precalculate_compass_basis(basis,fin,fout)
     io = open(fin,"r")
     Nd = read(io,Int32)
-    C = Array{Float64}(undef,6,Nd)
-    mm = transpose(read!(io,C))
-    #mm = readdlm(fin); Nd = size(mm,1)
-    m2 = fill(0.0im, Nd, length(basis))
+    variable_mat = Array{Float64}(undef,6,Nd)
+    read!(io,variable_mat)
+    #variable_mat = readdlm(fin); Nd = size(variable_mat,1)
+    function_mat = fill(0.0im, Nd, length(basis))
     @progress for e in 1:Nd
         for (i,b) in enumerate(basis)
-            m2[e,i] = b(@view(mm[e,2:end])..., mm[e,1]);
+            function_mat[e,i] = b(@view(variable_mat[2:end,e])..., variable_mat[1,e]);
         end
     end
-    #writedlm(fout,[real(m2) imag(m2)])
-    io = open(Fout,"w")
-    write(io,trunc(Int64,Nd))
-    write(io,trunc(Int64,length(basis)+length(basis)))
-    write(io,[real(m2) imag(m2)])
+    io = open(fout,"w")
+    write(io,trunc(Int64, Nd))
+    write(io,trunc(Int64, length(basis)+length(basis)))
+    write(io,[real(function_mat) imag(function_mat)])
     close(io)
 end
+
 function read_precalc_basis(fname)
     io = open(fname,"r")
     r=read(io,Int64)
     c=read(io,Int64)
-    C = Array{Float64}(undef,r,c)
-
-    ld = read!(io,C)
-    #ld = readdlm(fname)
+    ld = Array{Float64}(undef,r,c)
+    read!(io,ld)
     Nh = div(size(ld,2),2)
     return ld[:,1:Nh]+1im*ld[:,(Nh+1):end]
 end
