@@ -1,7 +1,7 @@
 # parameters
-mass_bin_name = ARGS[1]# "1540_1560"
+mass_bin_name = "1540_1560" #ARGS[1]#
 tslice = "t1"
-path_to_working_folder = "data"
+path_to_working_folder = "/afs/cern.ch/user/m/mimikhas/work/private/pwa_data"#"data"
 path_wavelist = "src"
 
 ######################################################
@@ -14,9 +14,7 @@ using PWAHelper
 for app in ["rd", "mc", "fu"]
     pwf = path_to_working_folder
     @eval $(Symbol("kinvar_"*app))    = joinpath($pwf,"variables_$(mass_bin_name)_$(tslice)_"*$app*".txt")
-    @eval $(Symbol("basisfunc_"*app)) = joinpath($pwf,"functions_$(mass_bin_name)_$(tslice)_"*$app*".txt")
-    @eval $(Symbol("basisfunc_bin_"*app)) = joinpath($pwf,"functions_$(mass_bin_name)_$(tslice)_"*$app*".bin")
-
+    @eval $(Symbol("basisfunc_"*app)) = joinpath($pwf,"functions_$(mass_bin_name)_$(tslice)_"*$app*".bin")
 end
 
 # read wavelist throw waves below threshold
@@ -29,6 +27,6 @@ wavenames = get_wavenames(wavelist)
 wavebasis = get_wavebasis(wavelist)
 
 # do precalculations
-@time precalculate_compass_basis(wavebasis, kinvar_rd, basisfunc_rd, basisfunc_bin_rd)
-@time precalculate_compass_basis(wavebasis, kinvar_mc, basisfunc_mc, basisfunc_bin_mc)
-@time precalculate_compass_basis(wavebasis, kinvar_fu, basisfunc_fu, basisfunc_bin_fu)
+@time precalculate_compass_basis(wavebasis, kinvar_rd, basisfunc_rd)
+@time precalculate_compass_basis(wavebasis, kinvar_mc, basisfunc_mc)
+@time precalculate_compass_basis(wavebasis, kinvar_fu, basisfunc_fu)

@@ -1,8 +1,13 @@
 # parameters
-mass_bin_name = ARGS[1]
+mass_bin_name = "1540_1560" # ARGS[1]#
 tslice = "t1"
 path_wavelist = "src"
-path_to_working_folder = "data"
+path_to_working_folder = "/afs/cern.ch/user/m/mimikhas/work/private/pwa_data" # "data"
+# # parameters
+# mass_bin_name = ARGS[1]
+# tslice = "t1"
+# path_wavelist = "src"
+# path_to_working_folder = "data"
 
 ######################################################
 using DelimitedFiles
@@ -43,7 +48,7 @@ end
 
 # load precalculated data array
 const PsiRD = read_precalc_basis(
-    joinpath(path_to_working_folder,"functions_$(mass_bin_name)_$(tslice)_rd.txt"));
+    joinpath(path_to_working_folder,"functions_$(mass_bin_name)_$(tslice)_rd.bin"));
 # normalize Psi
 for i in 1:size(PsiRD,2)
     PsiRD[:,i] .*= 1.0/sqrt(Bscale[i])
