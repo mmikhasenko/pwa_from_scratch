@@ -33,7 +33,7 @@ const ModelBlocks = [noϵ, posϵ, negϵ, negϵ]
 
 # load precalculated data array
 const PsiRD = read_precalc_basis(
-    joinpath(path_to_working_folder,"functions_$(mass_bin_name)_$(tslice)_rd.txt"));
+    joinpath(path_to_working_folder,"functions_$(mass_bin_name)_$(tslice)_rd.bin"));
 
 # get functions to calculate LLH, derivative and hessian
 LLH, GRAD, LLH_and_GRAD!, HES = createLLHandGRAD(PsiRD, BmatMC, ModelBlocks);

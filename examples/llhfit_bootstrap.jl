@@ -3,7 +3,7 @@ mass_bin_name = ARGS[1]
 tslice = "t1"
 path_wavelist = "src"
 path_to_working_folder = "data"
-Nbstrap_attempts = 5 # No. of bootstrap attempts
+Nbstrap_attempts = 100 # No. of bootstrap attempts
 
 ######################################################
 using DelimitedFiles
@@ -38,21 +38,21 @@ BmatMC = read_cmatrix(
     joinpath(path_to_working_folder,"integrmat_$(mass_bin_name)_$(tslice)_mc.txt"));
 
 # get scale
-const Bscale = [sqrt(real(BmatMC[i,i])) for i in 1:size(BmatMC,1)];
-const parscale = abs.(extnd(Bscale, get_parameter_map(ModelBlocks, Nwaves)))
+const sqrtBscale = [sqrt(real(BmatMC[i,i])) for i in 1:size(BmatMC,1)];
+const parscale = abs.(extnd(sqrtBscale, get_parameter_map(ModelBlocks, Nwaves)))
 # normalize B
-scaled_BmatMC = BmatMC ./ Bscale ./ transpose(Bscale)
+scaled_BmatMC = BmatMC ./ sqrtBscale ./ transpose(sqrtBscale)
 
 # load precalculated data array
 const PsiRD = read_precalc_basis(
-    joinpath(path_to_working_folder,"functions_$(mass_bin_name)_$(tslice)_rd.txt"));
+    joinpath(path_to_working_folder,"functions_$(mass_bin_name)_$(tslice)_rd.bin"));
 
 const Nd = size(PsiRD,1)
 # normalize Psi
 const scaled_PsiRD = PsiRD
-scaled_PsiRD ./= transpose(Bscale)
+scaled_PsiRD ./= transpose(sqrtBscale)
 # for i in 1:size(PsiRD,2)
-#     scaled_PsiRD[:,i] .*= 1.0/Bscale[i]
+#     scaled_PsiRD[:,i] .*= 1.0/sqrtBscale[i]
 # end
 
 ###############################################################################
@@ -63,7 +63,7 @@ best_minimum = vcat(bestminpars...)
 best_minimum .*= parscale
 
 ###############################################################################
-final_pars_all_att = Array{Float64}(Npar+1, Nbstrap_attempts)
+final_pars_all_att = Matrix{Float64}(undef, Npar+1, Nbstrap_attempts)
 const scaled_pseudoPsiRD = copy(scaled_PsiRD)
 #attempt at bootstrap
 for b in 1:Nbstrap_attempts
