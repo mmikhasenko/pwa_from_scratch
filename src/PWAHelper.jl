@@ -1,9 +1,8 @@
 module PWAHelper
 
-using amplitudes_compass
+using ..amplitudes_compass
 
 using DelimitedFiles
-using Juno
 
 export precalculate_compass_basis, read_precalc_basis
 # export precalculate_compass_basis_txt, read_precalc_basis_txt
@@ -22,7 +21,7 @@ function precalculate_compass_basis(basis, fin, fout)
     read!(io, variable_mat)
     #variable_mat = readdlm(fin); Nd = size(variable_mat,1)
     function_mat = fill(0.0im, Nd, length(basis))
-    @progress for e in 1:Nd
+    for e in 1:Nd
         for (i, b) in enumerate(basis)
             function_mat[e, i] = b(@view(variable_mat[2:end, e])..., variable_mat[1, e])
         end

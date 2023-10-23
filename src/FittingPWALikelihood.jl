@@ -1,7 +1,7 @@
 module FittingPWALikelihood
 
+using ..PWAHelper
 using LinearAlgebra
-using PWAHelper
 
 export createLLHandGRAD, minimize
 

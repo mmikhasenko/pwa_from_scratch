@@ -9,7 +9,7 @@ export mπ, mπ2, mρ, mρ2, mτ, mτ2
 end
 
 module isobars
-using masses: mπ, mπ2
+using ..masses: mπ, mπ2
 export λ, U0, U1, f1_I, f1_II, r1
 
 """

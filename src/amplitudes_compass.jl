@@ -2,7 +2,7 @@ module amplitudes_compass
 # using masses: mπ, mπ2
 using QuadGK  # needed for waves notmalization
 using DelimitedFiles
-using DalitzPlotAnalysis: λ, change_basis, Z, WignerDϵ, WignerD, Wignerd, ClebschGordon
+using ..DalitzPlotAnalysis: λ, change_basis, Z, WignerDϵ, WignerD, Wignerd, ClebschGordon
 
 export swap_kin_parameters
 export fρ, ff2, fρ3, fσ, ff0_980, ff0_1500, BlttWskpf

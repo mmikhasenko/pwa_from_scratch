@@ -1,7 +1,7 @@
 module SDMHelper
 
+using ..PWAHelper
 using DelimitedFiles
-using PWAHelper
 
 using LinearAlgebra
 
