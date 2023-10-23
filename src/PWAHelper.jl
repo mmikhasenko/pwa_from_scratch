@@ -15,81 +15,84 @@ export get_parameter_ranges, normalize_pars!
 export calculate_integrals_from_precalc_basis
 
 
-function precalculate_compass_basis(basis,fin,fout)
-    io = open(fin,"r")
-    Nd = read(io,Int32)
-    variable_mat = Array{Float64}(undef,6,Nd)
-    read!(io,variable_mat)
+function precalculate_compass_basis(basis, fin, fout)
+    io = open(fin, "r")
+    Nd = read(io, Int32)
+    variable_mat = Array{Float64}(undef, 6, Nd)
+    read!(io, variable_mat)
     #variable_mat = readdlm(fin); Nd = size(variable_mat,1)
     function_mat = fill(0.0im, Nd, length(basis))
     @progress for e in 1:Nd
-        for (i,b) in enumerate(basis)
-            function_mat[e,i] = b(@view(variable_mat[2:end,e])..., variable_mat[1,e]);
+        for (i, b) in enumerate(basis)
+            function_mat[e, i] = b(@view(variable_mat[2:end, e])..., variable_mat[1, e])
         end
     end
-    io = open(fout,"w")
-    write(io,trunc(Int64, Nd))
-    write(io,trunc(Int64, length(basis)+length(basis)))
-    write(io,[real(function_mat) imag(function_mat)])
+    io = open(fout, "w")
+    write(io, trunc(Int64, Nd))
+    write(io, trunc(Int64, length(basis) + length(basis)))
+    write(io, [real(function_mat) imag(function_mat)])
     close(io)
 end
 
 function read_precalc_basis(fname)
-    io = open(fname,"r")
-    r=read(io,Int64)
-    c=read(io,Int64)
-    ld = Array{Float64}(undef,r,c)
-    read!(io,ld)
-    Nh = div(size(ld,2),2)
-    return ld[:,1:Nh]+1im*ld[:,(Nh+1):end]
+    io = open(fname, "r")
+    r = read(io, Int64)
+    c = read(io, Int64)
+    ld = Array{Float64}(undef, r, c)
+    read!(io, ld)
+    Nh = div(size(ld, 2), 2)
+    return ld[:, 1:Nh] + 1im * ld[:, (Nh+1):end]
 end
 
 function get_parameter_map(block_inds, Nw)
-    temp = []; numb = []
-    for (i,bl) in enumerate(block_inds)
+    temp = []
+    numb = []
+    for (i, bl) in enumerate(block_inds)
         # push false for the first parameter, true for others
-        push!(temp,false,[true for i=1:(length(bl)-1)]...);
-        push!(numb,bl...)
+        push!(temp, false, [true for i = 1:(length(bl)-1)]...)
+        push!(numb, bl...)
     end
-    Tmap = fill(0,2,sum(temp .+ 1))
-    count=1
-    for (i,b) in enumerate(temp)
-        Tmap[1,count] = numb[i]
-        count+=1
+    Tmap = fill(0, 2, sum(temp .+ 1))
+    count = 1
+    for (i, b) in enumerate(temp)
+        Tmap[1, count] = numb[i]
+        count += 1
         if b
-            Tmap[2,count] = numb[i];
-            count+=1
+            Tmap[2, count] = numb[i]
+            count += 1
         end
     end
     return Tmap
 end
 
 function get_npars(block_inds)
-    sum(2*length(bl)-1 for bl in block_inds)
+    sum(2 * length(bl) - 1 for bl in block_inds)
 end
 
 function make_pblock_inds(block_inds)
-    Nps = [2*length(bl)-1 for bl in block_inds]
+    Nps = [2 * length(bl) - 1 for bl in block_inds]
     counter = 1
-    pbls = [let v = collect(counter:(counter+Np-1))
-                counter += Np
-                v
-            end for Np in Nps]
+    pbls = [
+        let v = collect(counter:(counter+Np-1))
+            counter += Np
+            v
+        end for Np in Nps
+    ]
     return pbls
 end
 
-extnd(Ψ, tmap)  = [((tmap[2,i]==0) ? Ψ[tmap[1,i]] : 1im*Ψ[tmap[2,i]]) for i in 1:size(tmap,2)]
+extnd(Ψ, tmap) = [((tmap[2, i] == 0) ? Ψ[tmap[1, i]] : 1im * Ψ[tmap[2, i]]) for i in 1:size(tmap, 2)]
 function extnd!(X, Ψ, tmap)
-    for i in 1:size(tmap,2)
-        @inbounds X[i] = (tmap[2,i]==0) ? Ψ[tmap[1,i]] : 1im*Ψ[tmap[2,i]]
+    for i in 1:size(tmap, 2)
+        @inbounds X[i] = (tmap[2, i] == 0) ? Ψ[tmap[1, i]] : 1im * Ψ[tmap[2, i]]
     end
 end
 function shrnk(p, tmap)
-    Nw = tmap[2,end] # work around
-    outv = fill(0.0im,Nw)
-    for i in 1:size(tmap,2)
-        (tmap[1,i] != 0) && (outv[tmap[1,i]] += p[i]);
-        (tmap[2,i] != 0) && (outv[tmap[2,i]] += 1.0im*p[i]);
+    Nw = tmap[2, end] # work around
+    outv = fill(0.0im, Nw)
+    for i in 1:size(tmap, 2)
+        (tmap[1, i] != 0) && (outv[tmap[1, i]] += p[i])
+        (tmap[2, i] != 0) && (outv[tmap[2, i]] += 1.0im * p[i])
     end
     outv
 end
@@ -99,11 +102,13 @@ function cohsq(X, pblocks)
 end
 function cohts(X, pblocks)
     Np = length(X)
-    vblocks = [let v = fill(0.0,Np)
-        v[bl] .= 1.0
-        v
-    end for bl in pblocks]
-    sum(sum(X[bl])*pl for (pl,bl) in zip(vblocks, pblocks))
+    vblocks = [
+        let v = fill(0.0, Np)
+            v[bl] .= 1.0
+            v
+        end for bl in pblocks
+    ]
+    sum(sum(X[bl]) * pl for (pl, bl) in zip(vblocks, pblocks))
 end
 function cohts!(X, pblocks)
     # Np = length(X)
@@ -119,41 +124,43 @@ function cohts!(X, pblocks)
 end
 
 function contract_to_intensity(ΨΨstar, block_inds)
-    Tmap = get_parameter_map(block_inds, size(ΨΨstar,1))
-    Np = size(Tmap,2)
+    Tmap = get_parameter_map(block_inds, size(ΨΨstar, 1))
+    Np = size(Tmap, 2)
     pblocks = make_pblock_inds(block_inds)
     COH = fill(0.0, Np, Np)
     for bl in pblocks
-        COH[bl,bl] .= 1.0
+        COH[bl, bl] .= 1.0
     end
-    get(v,w) = (v==0 || w==0) ? 0.0im : ΨΨstar[v,w]
-    [COH[i,j]*( # meaning is ([1]-i[2]) * ([1]+i[2])
-            get(Tmap[1,i],Tmap[1,j]) +
-            get(Tmap[2,i],Tmap[2,j]) -
-        1im*get(Tmap[2,i],Tmap[1,j]) +
-        1im*get(Tmap[1,i],Tmap[2,j])
-            ) for j in 1:Np, i in 1:Np]
+    get(v, w) = (v == 0 || w == 0) ? 0.0im : ΨΨstar[v, w]
+    [COH[i, j] * ( # meaning is ([1]-i[2]) * ([1]+i[2])
+        get(Tmap[1, i], Tmap[1, j]) +
+        get(Tmap[2, i], Tmap[2, j]) -
+        1im * get(Tmap[2, i], Tmap[1, j]) +
+        1im * get(Tmap[1, i], Tmap[2, j])
+    ) for j in 1:Np, i in 1:Np]
 end
 
 
 function get_intesity(pars, form, block_inds)
     pblocks = make_pblock_inds(block_inds)
-    BM = real.(contract_to_intensity(form,block_inds))
+    BM = real.(contract_to_intensity(form, block_inds))
     Np = length(pars)
-    sum(pars[i]*BM[i,j]*pars[j] for i=1:Np, j=1:Np)
+    sum(pars[i] * BM[i, j] * pars[j] for i = 1:Np, j = 1:Np)
 end
 
 function get_parameter_ranges(form, block_inds)
     Np = get_npars(block_inds)
-    [let p = fill(0.0, Np)
-        p[i] = 1.0
-        1/sqrt(get_intesity(p, form, block_inds))
-     end for i in 1:Np]
+    [
+        let p = fill(0.0, Np)
+            p[i] = 1.0
+            1 / sqrt(get_intesity(p, form, block_inds))
+        end for i in 1:Np
+    ]
 end
 
 function normalize_pars!(pars, form, block_inds)
     Intens = get_intesity(pars, form, block_inds)
-    pars ./=  sqrt(Intens)
+    pars ./= sqrt(Intens)
     pars
 end
 

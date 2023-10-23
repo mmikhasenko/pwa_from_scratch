@@ -10,26 +10,28 @@ using ForwardDiff
 
 function createLLHandGRAD(PsiDT, form, block_masks)
 
-    Nd, Nwaves = size(PsiDT);
-    Tmap = get_parameter_map(block_masks,Nwaves)
-    Np = size(Tmap,2)::Int
+    Nd, Nwaves = size(PsiDT)
+    Tmap = get_parameter_map(block_masks, Nwaves)
+    Np = size(Tmap, 2)::Int
 
     pblocks = make_pblock_inds(block_masks)
-    vblocks = [let v = fill(0.0,Np)
+    vblocks = [
+        let v = fill(0.0, Np)
             v[bl] .= 1.0
             v
-        end for bl in pblocks]
+        end for bl in pblocks
+    ]
 
-    BM = (real.(contract_to_intensity(form,block_masks)))::Array{Float64,2};
+    BM = (real.(contract_to_intensity(form, block_masks)))::Array{Float64,2}
 
-    COHTS!(X) = cohts!(X,pblocks)
-    COHSQ(X) = cohsq(X,pblocks)
-    EXTND(Ψ) = extnd(Ψ,Tmap)
-    EXTND!(X,Ψ) = extnd!(X,Ψ,Tmap)
+    COHTS!(X) = cohts!(X, pblocks)
+    COHSQ(X) = cohsq(X, pblocks)
+    EXTND(Ψ) = extnd(Ψ, Tmap)
+    EXTND!(X, Ψ) = extnd!(X, Ψ, Tmap)
 
-    transposedExtendedPsiDT = Array{Complex{Float64}}(undef,Np,Nd)
+    transposedExtendedPsiDT = Array{Complex{Float64}}(undef, Np, Nd)
     for e in 1:Nd
-        EXTND!(@view(transposedExtendedPsiDT[:,e]),@view(PsiDT[e,:]))
+        EXTND!(@view(transposedExtendedPsiDT[:, e]), @view(PsiDT[e, :]))
     end
 
     # function LLH(pars)
@@ -55,10 +57,10 @@ function createLLHandGRAD(PsiDT, form, block_masks)
     # end
     function LLH(pars)
         res = sum(log,
-                @views sum(abs2,
-                    transposedExtendedPsiDT[bl,e] ⋅ pars[bl]
+            @views sum(abs2,
+                transposedExtendedPsiDT[bl, e] ⋅ pars[bl]
                 for bl in pblocks)
-                    for e in 1:Nd)
+            for e in 1:Nd)
         bilin = Nd * (pars' * BM * pars)
         return -res + bilin
     end
@@ -97,62 +99,63 @@ function createLLHandGRAD(PsiDT, form, block_masks)
 
     function GETHS(ExtΨ, pars)
         return sum(
-            let v = ExtΨ.*bl
-                real.(2*v*v')
+            let v = ExtΨ .* bl
+                real.(2 * v * v')
             end for bl in vblocks)
     end
 
     function HESSIAN(pars)
-        Np = size(pars,1)
+        Np = size(pars, 1)
         hes = fill(0.0, Np, Np)
         v = Array{Float64}(undef, Np)
         Yp = Array{Complex{Float64}}(undef, Np)
         for e in 1:Nd
             Yp .= pars
-            GETDV!(v, @view(transposedExtendedPsiDT[:,e]),Yp)
-            deriv = 2*v
+            GETDV!(v, @view(transposedExtendedPsiDT[:, e]), Yp)
+            deriv = 2 * v
             vale = pars' * v
-            num = GETHS(@view(transposedExtendedPsiDT[:,e]),pars)*vale - deriv * deriv'
+            num = GETHS(@view(transposedExtendedPsiDT[:, e]), pars) * vale - deriv * deriv'
             hes .-= num ./ vale^2
         end
-        hes .+= BM* (2Nd);
-        return hes;
+        hes .+= BM * (2Nd)
+        return hes
     end
 
     function LLH_and_GRAD!(pars, grad)
-        val = 0.0; grad .= 0.0
-        temp = Array{Float64}(undef,Np)
+        val = 0.0
+        grad .= 0.0
+        temp = Array{Float64}(undef, Np)
         Yp = Array{Complex{Float64}}(undef, Np)
         for e in 1:Nd
             Yp .= pars
-            GETDV!(temp, @view(transposedExtendedPsiDT[:,e]), Yp)
+            GETDV!(temp, @view(transposedExtendedPsiDT[:, e]), Yp)
             vale = (pars' * temp)::Float64
-            temp .*= (1.0/vale)
+            temp .*= (1.0 / vale)
             grad .-= temp
-            val -= log(vale);
+            val -= log(vale)
         end
         grad .*= 2.0
-        BB = BM*pars;
-        val += Nd * (pars' * BB);
-        grad .+= BB .* (2Nd);
-        return val;
+        BB = BM * pars
+        val += Nd * (pars' * BB)
+        grad .+= BB .* (2Nd)
+        return val
     end
 
     function GRAD(pars)
-        grad = fill(0.0,Np)
-        temp = Array{Float64}(undef,Np)
+        grad = fill(0.0, Np)
+        temp = Array{Float64}(undef, Np)
         Yp = Array{Complex{Float64}}(undef, Np)
         for e in 1:Nd
             Yp .= pars
-            GETDV!(temp, @view(transposedExtendedPsiDT[:,e]),Yp)
+            GETDV!(temp, @view(transposedExtendedPsiDT[:, e]), Yp)
             vale = (pars' * temp)::Float64
-            temp .*= 1/vale
+            temp .*= 1 / vale
             grad .-= temp
         end
         grad .*= 2.0
-        BB = BM*pars;
-        grad .+= BB* (2Nd);
-        return grad;
+        BB = BM * pars
+        grad .+= BB * (2Nd)
+        return grad
     end
 
     return LLH, GRAD, LLH_and_GRAD!, HESSIAN
@@ -160,33 +163,33 @@ end
 
 
 function minimize(minusLogLikelihood, andDerive!;
-                  algorithm::Symbol = :LD_LBFGS,
-                  verbose::Int = 0,
-                  maxeval::Int = 50000,
-                  # parsprecision::Float64 = 1e-4,
-                  llhtolerance::Float64 = 1e-4,
-                  starting_pars::Vector{Float64} = error("I need the starting parameters! Say starting_pars = [...]"))
-    i_iter = 1;
+    algorithm::Symbol=:LD_LBFGS,
+    verbose::Int=0,
+    maxeval::Int=50000,
+    # parsprecision::Float64 = 1e-4,
+    llhtolerance::Float64=1e-4,
+    starting_pars::Vector{Float64}=error("I need the starting parameters! Say starting_pars = [...]"))
+    i_iter = 1
     function to_minimize(x::Vector, grad::Vector)
         if length(grad) > 0
-            v = andDerive!(x,grad)
+            v = andDerive!(x, grad)
         else
             v = minusLogLikelihood(x)
         end
         i_iter += 1
-        verbose==1 && println(i_iter,": ",v)
-        verbose==2 && @show v,x
-        verbose==3 && @show v,grad
-        return v;
+        verbose == 1 && println(i_iter, ": ", v)
+        verbose == 2 && @show v, x
+        verbose == 3 && @show v, grad
+        return v
     end
     opt = Opt(algorithm, length(starting_pars)) # try LD_LBFGS || LD_MMA || LD_SLSQP
     # xtol_rel!(opt,parsprecision)
-    maxeval!(opt,maxeval)
-    ftol_abs!(opt,llhtolerance);
+    maxeval!(opt, maxeval)
+    ftol_abs!(opt, llhtolerance)
 
     min_objective!(opt, to_minimize)
 
-    (minf,pars,ret) = optimize(opt, starting_pars)#rand(size(TT,2)))
+    (minf, pars, ret) = optimize(opt, starting_pars)#rand(size(TT,2)))
     println("got $minf at $pars after some iterations (returned $ret)")
 
     pars
