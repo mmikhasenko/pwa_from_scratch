@@ -125,8 +125,8 @@ function ZϵDD(J::Int64, M::Int64, ϵ::Bool, L::Int64, l::Int64, Dϵ, D)
         for lm = -min(l, J):min(l, J))
 end
 
-isobarsV = [fσ, fρ, ff2, fρ3]
-isobarsS = [fσ, ff0_980, ff0_1500]
+isobarsV = [_fσ, _fρ, _ff2, _fρ3]
+isobarsS = [_fσ, _ff0_980, _ff0_1500]
 
 
 # constract COMPASS basis
