@@ -1,19 +1,19 @@
 # parameters
 mass_bin_name = "1540_1560" #ARGS[1]#
 tslice = "t1"
-path_to_working_folder = "/afs/cern.ch/user/m/mimikhas/work/private/pwa_data"#"data"
+path_to_working_folder = "data"
 path_wavelist = "src"
 
+!isdir(path_to_working_folder) && error("Working forder is not ligit")
+
 ######################################################
-@show ARGS
-push!(LOAD_PATH, "src")
-using amplitudes_compass
-using PWAHelper
+using PartialWavesFromScratch.amplitudes_compass
+using PartialWavesFromScratch.PWAHelper
 
 # set names
 for app in ["rd", "mc", "fu"]
     pwf = path_to_working_folder
-    @eval $(Symbol("kinvar_" * app)) = joinpath($pwf, "variables_$(mass_bin_name)_$(tslice)_" * $app * ".txt")
+    @eval $(Symbol("kinvar_" * app)) = joinpath($pwf, "variables_$(mass_bin_name)_$(tslice)_" * $app * ".bin")
     @eval $(Symbol("basisfunc_" * app)) = joinpath($pwf, "functions_$(mass_bin_name)_$(tslice)_" * $app * ".bin")
 end
 
