@@ -56,3 +56,5 @@ sdm91-err.re
 sdm91.im
 sdm91.re
 src/README.md
+
+plots/bootstrap/par*.pdf
