@@ -2,15 +2,14 @@
 mass_bin_name = "1540_1560" # ARGS[1]#
 tslice = "t1"
 path_wavelist = "src"
-path_to_working_folder = "/afs/cern.ch/user/m/mimikhas/work/private/pwa_data"#"data"
+path_to_working_folder = "data"
 
+!isdir(path_to_working_folder) && error("Working forder is not ligit")
 
 #########################################################
-@show ARGS
-push!(LOAD_PATH, "src")
-print(typeof(mass_bin_name))
-using SDMHelper
-using PWAHelper
+
+using PartialWavesFromScratch.SDMHelper
+using PartialWavesFromScratch.PWAHelper
 
 const BmatMC = let
     println("1. load data")

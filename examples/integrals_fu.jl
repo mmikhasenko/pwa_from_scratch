@@ -1,21 +1,21 @@
 # parameters
-mass_bin_name = ARGS[1]# "1540_1560"
+mass_bin_name = "1540_1560" # ARGS[1]#
 tslice = "t1"
 path_wavelist = "src"
 path_to_working_folder = "data"
 
+!isdir(path_to_working_folder) && error("Working forder is not ligit")
 
 #########################################################
-@show ARGS
-push!(LOAD_PATH, "src")
-using SDMHelper
-using PWAHelper
+
+using PartialWavesFromScratch.SDMHelper
+using PartialWavesFromScratch.PWAHelper
 
 const BmatFU = let
 
     println("1. load data")
     @time PsiFU = read_precalc_basis(
-        joinpath(path_to_working_folder, "functions_$(mass_bin_name)_$(tslice)_fu.txt"))
+        joinpath(path_to_working_folder, "functions_$(mass_bin_name)_$(tslice)_fu.bin"))
 
     println("2. calculate sums")
     PsiTFU = transpose(PsiFU)
