@@ -1,8 +1,6 @@
-using Base.Test
+using Test
 
-push!(LOAD_PATH, "src")
-
-using DalitzPlotAnalysis
+using PartialWavesFromScratch.DalitzPlotAnalysis
 
 fewtests = [
     let s = 1.4, mπ = 0.14, mπ2 = mπ^2, z = 2rand() - 1
@@ -14,4 +12,6 @@ fewtests = [
     end
     for i in 1:1000]
 
-@test sum(fewtests) == size(fewtests, 1)
+@testset "Cross channel relation" begin
+    sum(fewtests) == size(fewtests, 1)
+end
