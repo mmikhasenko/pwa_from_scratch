@@ -1,9 +1,9 @@
-
+data
+olddata
 
 .ipynb_checkpoints/
 2300.mc.txt
 2300.rd.txt
-data
 min.txt
 min1e5.txt
 plot_something_with_waves.ipynb
@@ -27,7 +27,6 @@ plots/diff_2300_2320_t1.pdf
 plots/sdm_diff_2300_2320_t1.pdf
 plots/sdm_results_2300_2320_t1.pdf
 plots/sdm_results_2300_2320_t1.png
-save_memory
 
 #
 SDMs
@@ -55,6 +54,5 @@ sdm91-err.im
 sdm91-err.re
 sdm91.im
 sdm91.re
-src/README.md
 
 plots/bootstrap/par*.pdf
