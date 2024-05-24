@@ -1,15 +1,14 @@
 using Plots
-theme(:default)
-pyplot()
+theme(:wong2)
 
 using DelimitedFiles
 
-push!(LOAD_PATH, "src")
-using DalitzPlotAnalysis
-using amplitudes_compass
-using PWAHelper
-using SDMHelper
-using FittingPWALikelihood
+using PartialWavesFromScratch.DalitzPlotAnalysis
+import PartialWavesFromScratch.amplitudes_compass
+
+using PartialWavesFromScratch.PWAHelper
+using PartialWavesFromScratch.SDMHelper
+using PartialWavesFromScratch.FittingPWALikelihood
 
 mass_bin_name = "1540_1560" # "2320_2340"
 tslice = "t1"
@@ -18,6 +17,7 @@ for app in ["rd", "mc", "fu"]
     @eval $(Symbol("kinvar_" * app)) = joinpath("data", "variables_$(mass_bin_name)_$(tslice)_" * $app * ".txt")
     @eval $(Symbol("basisfunc_" * app)) = joinpath("data", "functions_$(mass_bin_name)_$(tslice)_" * $app * ".txt")
 end
+
 # get number of lines
 nlines_rd = Meta.parse(split(read(`wc -l $(basisfunc_rd)`, String), " ")[1])
 nlines_mc = Meta.parse(split(read(`wc -l $(basisfunc_mc)`, String), " ")[1])
