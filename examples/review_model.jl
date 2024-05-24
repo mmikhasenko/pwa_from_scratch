@@ -16,7 +16,6 @@ begin
     using PartialWavesFromScratch.masses
     import PartialWavesFromScratch.amplitudes_compass: get_wavelist, get_wavenames, get_wavebasis
 
-
     using Plots
     using DelimitedFiles
     using DataFrames
@@ -47,17 +46,16 @@ begin
 end
 
 # ╔═╡ 164997ec-478f-41d7-bece-41d6cac651a8
-wavelist = get_wavelist(joinpath("src", "wavelist_formated.txt");
-    path_to_thresholds=joinpath("src", "thresholds_formated.txt"),
-    M3pi=Meta.parse(mass_bin_name[1:4]) / 1000)
+begin
+    wavelist = get_wavelist(joinpath("src", "wavelist_formated.txt");
+        path_to_thresholds=joinpath("src", "thresholds_formated.txt"),
+        M3pi=Meta.parse(mass_bin_name[1:4]) / 1000)
+    # 
+    wavenames = get_wavenames(wavelist)
+    wavebasis = get_wavebasis(wavelist)
+end
 
 # ╔═╡ 2c885f1a-3ef6-4471-85dd-0869e8bdc78a
-wavenames = get_wavenames(wavelist)
-
-# ╔═╡ a9f5f31c-97b0-4f25-864c-f40c30e747fd
-wavebasis = get_wavebasis(wavelist)
-
-
 let
     τ1 = (; df[1, :]...)
     wi = wavebasis[2]
@@ -65,28 +63,26 @@ let
     (; τ1, value)
 end
 
-
-wavenames[2]
-
+# ╔═╡ a9f5f31c-97b0-4f25-864c-f40c30e747fd
 let
     wn, name, J, P, M, ϵ, S, L = wavelist[2, :]
     (; wn, name, J, P, M, ϵ, S, L)
 end
 
-wavelist_df = DataFrame(wavelist, [:wn, :name, :J, :P, :M, :ϵ, :S, :L])
-
-writedlm("waves.txt", eachrow(wavelist_df))
 
 # ╔═╡ 1e63c1d0-57fa-4d4f-914e-9ab51b180a0a
-amplitudes = hcat([
-    map(eachrow(df)) do τ
-        w(τ...)
-    end for w in wavebasis
-]...)
+let
+    wavelist_df = DataFrame(wavelist, [:wn, :name, :J, :P, :M, :ϵ, :S, :L])
+    writedlm("waves.txt", eachrow(wavelist_df))
 
-using DelimitedFiles
+    amplitudes = hcat([
+        map(eachrow(df)) do τ
+            w(τ...)
+        end for w in wavebasis
+    ]...)
+    writedlm("amplitudes_point1.txt", reim.(amplitudes[1, :]))
+end
 
-writedlm("amplitudes_point1.txt", reim.(amplitudes[1, :]))
 
 # ╔═╡ Cell order:
 # ╠═cbe3de4f-b52f-496d-b44f-85df58e74961
