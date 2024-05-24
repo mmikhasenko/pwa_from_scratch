@@ -39,7 +39,7 @@ size(readdlm(joinpath(path_wavelist, "wavelist_formated.txt")), 1)
 # Model description
 wavelist = get_wavelist(joinpath(path_wavelist, "wavelist_formated.txt");
     path_to_thresholds=joinpath(path_wavelist, "thresholds_formated.txt"),
-    M3pi=M3pi)
+    M3pi)
 # 
 const posϵ = [i for (i, ϵ) in enumerate(wavelist[:, 6]) if ϵ == "+"]
 const negϵ = [i for (i, ϵ) in enumerate(wavelist[:, 6]) if ϵ == "-"]
@@ -48,10 +48,7 @@ const Nwaves = size(wavelist, 1)
 
 
 println("Start calculating SDMs")
-SDM = []
-list_of_files = split(readline("data/llhfit/$(mass_bin_name)/llh_attmpts_$(mass_bin_name)_$(tslice).txt"), "\t")[1]#ARGS[3:end]
-path_and_filename = list_of_files
-minpars = readdlm(path_and_filename);
+minpars = readdlm("data/llhfit_1540_1560_t1_87374.txt")
 SDM = normfact * pars_to_SDM(minpars, BmatFU, ModelBlocks)
 
 threshold_mask = get_threshold_mask(joinpath(path_wavelist, "thresholds_formated.txt"), M3pi, 88)
@@ -59,18 +56,22 @@ SDM_enlarged = enlarge_with_zeros!(SDM, threshold_mask)
 
 
 # PUBLISHED DATA
-
 SDM_mass_bin_name = string(trunc(Int, 100 - ((2480 - Meta.parse(split(mass_bin_name, "_")[1])) ./ 20)))                #ARGS[2]
+
 #Compass SDM
-path_to_SDM = "/mnt/data/compass/2008/pwa_results/SDMs/0.100000-0.112853/";
+path_to_SDM = "data/SDMs/0.100000-0.112853/";
 SDM_RD = read_compass_SDM(joinpath(path_to_SDM, "sdm$(SDM_mass_bin_name)."),
-    path_to_wavelist=joinpath("src", "wavelist_formated.txt");
-    M3pi=M3pi)
+    path_to_wavelist=joinpath(path_wavelist, "wavelist_formated.txt"),
+    path_to_thresholds=joinpath(path_wavelist, "thresholds_formated.txt");
+    M3pi)
 
 SDM_RD_err = read_compass_SDM(joinpath(path_to_SDM, "sdm$(SDM_mass_bin_name)-err."),
-    path_to_wavelist=joinpath("src", "wavelist_formated.txt");
-    M3pi=M3pi)
+    path_to_wavelist=joinpath("src", "wavelist_formated.txt"),
+    path_to_thresholds=joinpath(path_wavelist, "thresholds_formated.txt");
+    M3pi)
 
+pars0 = SDM_to_pars(SDM_RD ./ normfact, BmatFU, ModelBlocks)
+abs.(diag(pars_to_SDM(pars0, BmatFU, ModelBlocks) .* normfact) .- diag(SDM_RD))
 
 #########################################################################################
 #########################################################################################
@@ -80,13 +81,19 @@ SDM_RD_err = read_compass_SDM(joinpath(path_to_SDM, "sdm$(SDM_mass_bin_name)-err
 
 # SDM MAIN FIT PLOTTING
 
-bar(real.(diag(SDM_enlarged)), lab="S.S", color="red", size=(800, 500))
-scatter!(real.(diag(SDM_RD)), yerror=real.(diag(SDM_RD_err)), lab="F.H.-D.R.", color="green",
-    xlab="# wave", ylab="Magnitude", title="Diagonal of the SDM_$(mass_bin_name)_$(tslice)", size=(800, 500))
-savefig(joinpath("plots/sdm_results/final", "sdm_results_$(mass_bin_name)_$(tslice)_test.png"))
+let
+    bar(real.(diag(SDM_enlarged)), lab="S.S", color="red", size=(800, 500))
+    scatter!(real.(diag(SDM_RD)), yerror=real.(diag(SDM_RD_err)), lab="F.H.-D.R.", color="green",
+        xlab="# wave", ylab="Magnitude", title="Diagonal of the SDM_$(mass_bin_name)_$(tslice)", size=(800, 500))
+end
+
+
+
+
+
 
 # BOOTSTRAP PLOTTING
-
+# does not work
 bootstrap_file = "data/llhfit_bootstrap_$(mass_bin_name)_$(tslice).txt"
 BootstrapResults = readdlm(bootstrap_file)
 Nbstrap_attempts = vcat(size(BootstrapResults[1, :])...)[1]
