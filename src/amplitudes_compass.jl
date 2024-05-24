@@ -229,7 +229,7 @@ function read_compass_SDM(path_inclusing_sdmXXdot; path_to_wavelist="", path_to_
             thresholds[Int64(v[1])] = v[2]
         end
     else
-        warn("Do not consider thresholds!")
+        @warn("Do not consider thresholds!")
     end
     thresholds_filter = thresholds .< M3pi
     SDM = readdlm(path_inclusing_sdmXXdot * "re") + 1im * readdlm(path_inclusing_sdmXXdot * "im")
