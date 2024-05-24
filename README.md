@@ -1,5 +1,13 @@
 # PWA from Scratch
 
+## Running analysis
+
+1. Precalculation: `examples/precalculation.jl`
+2. Compute integrals: `examples/integrals.jl`
+3. Compute integrals: `examples/integrals_fu.jl`
+4. Perform fit: `examples/llhfit.jl`
+
+
 ## Validation of integrals
 
 If you want to compare the different methods to calculate the phase-space integrals do the following steps:
