@@ -1,7 +1,5 @@
 module PartialWavesFromScratch
 
-include("isobars.jl")
-
 include("DalitzPlotAnalysis.jl") # need LinearAlgebra, GSL
 
 include("amplitudes_compass.jl") # depends on DalitzPlotAnalysis.jl
