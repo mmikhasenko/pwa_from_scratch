@@ -3,8 +3,9 @@ using ThreeBodyDecaysIO.ThreeBodyDecays.PartialWaveFunctions
 using Parameters
 using DelimitedFiles
 using DataFrames
+using DataFramesMeta
 using JSON
-
+using Setfield
 
 # ## Lineshapes
 using ThreeBodyDecaysIO.HadronicLineshapes
@@ -211,8 +212,10 @@ value
 
 ## # Compare all waves
 
+mass_bin_name = "1540_1560"
+m0_bin_center = 1.55 # GeV
+
 wavelist_df = let
-    mass_bin_name = "1540_1560"
     folder = joinpath(@__DIR__, "..", "tests", "references")
     filename = joinpath(folder, mass_bin_name * "_ref.json")
     _waves_summary = open(filename) do io
@@ -258,3 +261,38 @@ sort!(transform!(df_comp,
 df_comp.status = map(x -> x < 1e-8 ? "🍏" : "🧧", df_comp.absdiff)
 select(df_comp, [:name, :absdiff, :status])
 
+
+# ## Serialization
+
+all_waves = map(eachrow(wavelist_df)) do (wave_description)
+    @unpack weights = wave_description
+    _two_waves = build_compass_model(wave_description; m0=m0_bin_center)
+    @set _two_waves.couplings = _two_waves.couplings .* weights
+end
+
+function Base.vcat(mv::ThreeBodyDecay...)
+    names = vcat(getproperty.(mv, :names)...)
+    couplings = vcat(getproperty.(mv, :couplings)...)
+    chains = vcat(getproperty.(mv, :chains)...)
+    ThreeBodyDecay(names .=> zip(couplings, chains))
+end
+
+
+
+gp = groupby(wavelist_df, [:J, :M])
+all_models = combine(gp) do sdf
+    all_waves = map(eachrow(sdf)) do wave_description
+        @unpack weights = wave_description
+        _two_waves = build_compass_model(wave_description; m0=m0_bin_center)
+        @set _two_waves.couplings = _two_waves.couplings .* weights
+    end
+    model = vcat(all_waves...)
+    model[.!(model.couplings .≈ 0), :]
+end
+
+
+
+using ThreeBodyDecaysIO
+
+serializeToDict(all_models.x1[1])
+sum(length, all_models.x1)
