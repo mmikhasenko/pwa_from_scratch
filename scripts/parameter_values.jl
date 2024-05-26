@@ -81,13 +81,14 @@ basis = get_wavebasis(wavelist)
 # reference point
 
 τ1_test = (
-    σ1=0.6311001857724697,
-    cosθ1=-0.36619233111451877, ϕ1=0.09298675596700612,
-    cosθ23=-0.611301179735489, ϕ23=0.6244178754076133, s=2.3253174651821458)
+    σ1=0.13569322768095665,
+    cosθ1=0.5832472308560757, ϕ1=0.5079864049912346,
+    cosθ23=-0.12538287914286417, ϕ23=-0.39836956124095346, s=2.3201214385414826)
 # 
 references = map(b -> b(τ1_test...), basis)
 
 # 
+wavelist[1, 3:end] .= wavelist[2, 3:end]
 waves_summary = DataFrame(wavelist, [:wn, :name, :J, :P, :M, :ϵ, :S, :L])
 waves_summary.weights = weights
 waves_summary.references = references
