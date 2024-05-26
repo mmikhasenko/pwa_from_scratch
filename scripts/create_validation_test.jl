@@ -228,8 +228,6 @@ cal_test = gj_amplitude(wave2[1], σs_0, angles_0;
     wave_description.M, ϵP=2 * (wave_description.ϵ == wave_description.P) - 1) ≈
         value
 
-# unpolarized_intensity(wave2, σs_0)
-
 
 ## # Compare all waves
 
@@ -286,19 +284,13 @@ df_comp.status = map(x -> x < 1e-8 ? "🍏" : "🧧", df_comp.absdiff)
 select(df_comp, [:name, :absdiff, :status])
 
 
-
-
-
-
-# ## Serialization
+# ## Build all models
 
 all_waves = map(eachrow(wavelist_df)) do (wave_description)
     @unpack weights = wave_description
     _two_waves = build_compass_model(wave_description; m0=m0_bin_center)
     @set _two_waves.couplings = _two_waves.couplings .* weights
 end
-
-
 
 gp = groupby(wavelist_df, [:J, :P, :M])
 all_models = combine(gp) do sdf
@@ -309,6 +301,18 @@ all_models = combine(gp) do sdf
     end
     model = vcat(all_waves...)
 end
+
+
+using Plots
+
+let i = 7
+    model = all_models.x1[i]
+    @unpack J, P, M = all_models[i, :]
+    plot(masses(model), Base.Fix1(unpolarized_intensity, model); iσx=1, iσy=3, title="JP=$J$P, M=$M")
+end
+
+
+# ## Serialization
 
 using ThreeBodyDecaysIO
 using OrderedCollections
@@ -357,9 +361,6 @@ function lineshape_parser(lineshape)
     # 
     (; scattering, FF_production, FF_decay), appendix
 end
-
-model_description, functions = serializeToDict(all_models.x1[1]; lineshape_parser)
-
 
 
 dict = let ind = 1
