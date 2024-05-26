@@ -138,9 +138,9 @@ end
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
+const mπ = 0.13956755
 
 function build_compass_model(wave_description; m0)
-    mπ = 0.13956755
     ms = ThreeBodyMasses(mπ, mπ, mπ; m0)
     # 
     @unpack J = wave_description
@@ -153,7 +153,7 @@ function build_compass_model(wave_description; m0)
     bw_ff = (S ≥ 0) ? isobarsV[S+1] : isobarsS[1-S]
     j = S ≥ 0 ? S : 0
     # 
-    q(σ) = HadronicLineshapes.breakup(ms.m0, sqrt(σ), ms.m1)
+    q(σ) = HadronicLineshapes.breakup(ms.m0, sqrt(σ), mπ)
     ff_Rj = BlattWeisskopf{l}(1 / 0.2024)(q)
     Xlineshape = bw_ff * ff_Rj
     iϵ = 1im * nextfloat(0.0)
@@ -175,28 +175,25 @@ function build_compass_model(wave_description; m0)
     return wave
 end
 
-
-
-# ## Compare a single amplitude, [2], at a point
+## Compare a single amplitude, [2], at a point
 
 τ1_0 = (
     σ1=0.13569322768095665,
     cosθ1=0.5832472308560757, ϕ1=0.5079864049912346,
     cosθ23=-0.12538287914286417, ϕ23=-0.39836956124095346, s=2.3201214385414826)
 
+σs_0 = let
+    @unpack σ1 = τ1_0
+    ms = ThreeBodyMasses(mπ, mπ, mπ; m0=sqrt(τ1_0.s))
+    σ2 = σ2of1(τ1_0.cosθ23, σ1, ms^2)
+    Invariants(ms; σ1, σ2)
+end
 angles_0 = (ϕ=τ1_0.ϕ1, cosθ=τ1_0.cosθ1, χ=τ1_0.ϕ23)
 
 wave_description = @NamedTuple{wn, name, J, P, M, ϵ, S, L}((2, "1-(1++)0+rhopiS", 1, "+", 0, "+", 1, 0))
 value = 3.5036258938478007 - 0.6239732117186556im
 
 wave2 = build_compass_model(wave_description; m0=sqrt(τ1_0.s))
-
-σs_0 = let
-    @unpack σ1 = τ1_0
-    σ2 = σ2of1(τ1_0.cosθ23, σ1, masses(wave2)^2)
-    Invariants(masses(wave2); σ1, σ2)
-end
-
 
 wave2.chains[1].Xlineshape(σs_0[1]) ≈ 1.288120896761017 + 0.03786584582224358im
 wave2.chains[2].Xlineshape(σs_0[3]) ≈ -2.064664920993486 + 0.8309945337099337im
@@ -230,18 +227,18 @@ end
 
 check_points = wavelist_df.references
 
-τ1_ref = τ1_0
-#(
-# σ1=0.6311001857724697,
-# cosθ1=-0.36619233111451877, ϕ1=0.09298675596700612,
-# cosθ23=-0.611301179735489, ϕ23=0.6244178754076133, s=2.3253174651821458)
+τ1_ref = (
+    σ1=0.6311001857724697,
+    cosθ1=-0.36619233111451877, ϕ1=0.09298675596700612,
+    cosθ23=-0.611301179735489, ϕ23=0.6244178754076133, s=2.3253174651821458)
 # 
 σs_ref, angles_ref = let
     τ = τ1_ref
+    ms = ThreeBodyMasses(mπ, mπ, mπ; m0=sqrt(τ1_ref.s))
     _σs = let
         @unpack σ1 = τ
-        σ2 = σ2of1(τ.cosθ23, σ1, masses(wave2)^2)
-        Invariants(masses(wave2); σ1, σ2)
+        σ2 = σ2of1(τ.cosθ23, σ1, ms^2)
+        Invariants(ms; σ1, σ2)
     end
     _angles = (ϕ=τ.ϕ1, cosθ=τ.cosθ1, χ=τ.ϕ23)
     _σs, _angles
