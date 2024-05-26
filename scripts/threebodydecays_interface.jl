@@ -23,6 +23,13 @@ function (bw::BreitWignerRhoNoSqrt)(σ)
     mΓ = m * Γ * p / p0 * ff(p)^2 / ff(p0)^2
     1 / (m^2 - σ - 1im * mΓ)
 end
+function ThreeBodyDecaysIO.serializeToDict(x::BreitWignerRhoNoSqrt)
+    type = "BreitWignerRhoNoSqrt"
+    @unpack mπ, d = x
+    dict = LittleDict{Symbol,Any}(pairs((; type, mass=x.m, width=x.Γ, mπ, d)))
+    appendix = Dict()
+    return (dict, appendix)
+end
 
 
 @with_kw struct BreitWignerRho3XQrt <: HadronicLineshapes.AbstractFlexFunc
@@ -33,6 +40,13 @@ function (bw::BreitWignerRho3XQrt)(σ)
     @unpack m, Γ = bw
     sqrt(sqrt(σ)) / (m^2 - σ - 1im * m * Γ)
 end
+function ThreeBodyDecaysIO.serializeToDict(x::BreitWignerRho3XQrt)
+    type = "BreitWignerRho3XQrt"
+    dict = LittleDict{Symbol,Any}(pairs((; type, mass=x.m, width=x.Γ)))
+    appendix = Dict()
+    return (dict, appendix)
+end
+
 
 @with_kw struct KatchaevSigma <: HadronicLineshapes.AbstractFlexFunc
     poles::Vector{Float64}
@@ -59,7 +73,13 @@ function (bw::KatchaevSigma)(σ)
     rho00 = sqrt(Kallen(σ, mπ2, mπ2)) / σ
     return 1.0 / (M00 - 1im * rho00)
 end
-
+function ThreeBodyDecaysIO.serializeToDict(x::KatchaevSigma)
+    type = "KatchaevSigma"
+    @unpack poles, residues, nonpole_expansion_coeffs = x
+    dict = LittleDict{Symbol,Any}(pairs((; type, poles, residues, nonpole_expansion_coeffs)))
+    appendix = Dict()
+    return (dict, appendix)
+end
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
@@ -178,7 +198,6 @@ function build_compass_model(wave_description; m0)
     q(σ) = HadronicLineshapes.breakup(ms.m0, sqrt(σ), mπ)
     ff_Rj = BlattWeisskopf{l}(1 / 0.2024)(q)
     Xlineshape = bw_ff * ff_Rj
-    iϵ = 1im * nextfloat(0.0)
 
     dc1 = DecayChain(;
         k=1,
@@ -248,8 +267,6 @@ end
 @subset! wavelist_df :weights .!= 0
 
 
-
-
 check_points = wavelist_df.references
 
 τ1_ref = (
@@ -317,27 +334,6 @@ end
 using ThreeBodyDecaysIO
 using OrderedCollections
 
-function ThreeBodyDecaysIO.serializeToDict(x::BreitWignerRhoNoSqrt)
-    type = "BreitWignerRhoNoSqrt"
-    @unpack mπ, d = x
-    dict = LittleDict{Symbol,Any}(pairs((; type, mass=x.m, width=x.Γ, mπ, d)))
-    appendix = Dict()
-    return (dict, appendix)
-end
-function ThreeBodyDecaysIO.serializeToDict(x::BreitWignerRho3XQrt)
-    type = "BreitWignerRho3XQrt"
-    dict = LittleDict{Symbol,Any}(pairs((; type, mass=x.m, width=x.Γ)))
-    appendix = Dict()
-    return (dict, appendix)
-end
-function ThreeBodyDecaysIO.serializeToDict(x::KatchaevSigma)
-    type = "KatchaevSigma"
-    @unpack poles, residues, nonpole_expansion_coeffs = x
-    dict = LittleDict{Symbol,Any}(pairs((; type, poles, residues, nonpole_expansion_coeffs)))
-    appendix = Dict()
-    return (dict, appendix)
-end
-
 
 function lineshape_parser(lineshape)
     !(lineshape isa ProductFlexFunc && lineshape.F1 isa ScaleFlexFunc && lineshape.F1.F isa ProductFlexFunc) &&
@@ -362,20 +358,51 @@ function lineshape_parser(lineshape)
     (; scattering, FF_production, FF_decay), appendix
 end
 
-
 dict = let ind = 1
     J = all_models.J[ind]
     M = all_models.M[ind]
     P = all_models.M[ind]
     model_name = "compass_3pi_JP=$(J)$(P)_M=$(M)_$(mass_bin_name)"
     # 
-    model = all_models.x1[1]
+    model = all_models.x1[ind]
     decay_description, functions = serializeToDict(model;
         lineshape_parser, particle_labels=("pi-", "pi+", "pi-", "X_3pi"))
     # 
     add_hs3_fields(decay_description, functions, model_name)
 end
 
-open("model.json", "w") do io
-    JSON.print(io, dict, 2)
+
+function serialize_with_hs3(model, J, P, M)
+    model_name = "compass_3pi_JP=$(J)$(P)_M=$(M)_$(mass_bin_name)"
+    decay_description, functions = serializeToDict(model;
+        lineshape_parser, particle_labels=("pi-", "pi+", "pi-", "X_3pi"))
+    add_hs3_fields(decay_description, functions, model_name)
+end
+
+dict = let ind = 1
+    J = all_models.J[ind]
+    M = all_models.M[ind]
+    P = all_models.M[ind]
+    model = all_models.x1[1]
+    serialize_with_hs3(model, J, P, M)
+end
+
+few_models_dict = map(eachrow(all_models[1:5, :])) do row
+    serialize_with_hs3(row.x1, row.J, row.P, row.M)
+end
+
+
+
+few_models_dict[1]
+_combined = LittleDict(
+    :distributions => [_dict[:distributions][1] for _dict in few_models_dict],
+    :functions => unique(x -> x[:name], vcat((_dict[:functions] for _dict in few_models_dict)...)),
+    :domains => few_models_dict[1][:domains],
+    :misc => few_models_dict[1][:misc],
+    :parameter_points => few_models_dict[1][:parameter_points]
+)
+
+
+open("compass_3pi_$(mass_bin_name).json", "w") do io
+    JSON.print(io, _combined, 2)
 end
