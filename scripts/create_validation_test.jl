@@ -3,6 +3,7 @@ using ThreeBodyDecaysIO.ThreeBodyDecays.PartialWaveFunctions
 using Parameters
 using DelimitedFiles
 using DataFrames
+using JSON
 
 
 # ## Lineshapes
@@ -138,7 +139,7 @@ end
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
 
-function build_compass_model(wave_description, m0)
+function build_compass_model(wave_description; m0)
     mπ = 0.13956755
     ms = ThreeBodyMasses(mπ, mπ, mπ; m0)
     # 
@@ -178,53 +179,76 @@ end
 
 # ## Compare a single amplitude, [2], at a point
 
-phsp = (σ1=0.13569322768095665, cosθ1=0.5832472308560757, ϕ1=0.5079864049912346, cosθ23=-0.12538287914286417, ϕ23=-0.39836956124095346, s=2.3201214385414826)
+τ1_0 = (
+    σ1=0.13569322768095665,
+    cosθ1=0.5832472308560757, ϕ1=0.5079864049912346,
+    cosθ23=-0.12538287914286417, ϕ23=-0.39836956124095346, s=2.3201214385414826)
 
-angles_test = (ϕ=phsp.ϕ1, cosθ=phsp.cosθ1, χ=phsp.ϕ23)
-
+angles_0 = (ϕ=τ1_0.ϕ1, cosθ=τ1_0.cosθ1, χ=τ1_0.ϕ23)
 
 wave_description = @NamedTuple{wn, name, J, P, M, ϵ, S, L}((2, "1-(1++)0+rhopiS", 1, "+", 0, "+", 1, 0))
 value = 3.5036258938478007 - 0.6239732117186556im
 
-wave2 = build_compass_model(wave_description, sqrt(phsp.s))
+wave2 = build_compass_model(wave_description; m0=sqrt(τ1_0.s))
 
-σs_test = let
-    @unpack σ1 = phsp
-    σ2 = σ2of1(phsp.cosθ23, σ1, masses(wave2)^2)
+σs_0 = let
+    @unpack σ1 = τ1_0
+    σ2 = σ2of1(τ1_0.cosθ23, σ1, masses(wave2)^2)
     Invariants(masses(wave2); σ1, σ2)
 end
 
 
-wave2.chains[1].Xlineshape(σs_test[1]) ≈ 1.288120896761017 + 0.03786584582224358im
-wave2.chains[2].Xlineshape(σs_test[3]) ≈ -2.064664920993486 + 0.8309945337099337im
+wave2.chains[1].Xlineshape(σs_0[1]) ≈ 1.288120896761017 + 0.03786584582224358im
+wave2.chains[2].Xlineshape(σs_0[3]) ≈ -2.064664920993486 + 0.8309945337099337im
 
-cal_test = gj_amplitude(wave2[1], σs_test, angles_test;
+cal_test = gj_amplitude(wave2[1], σs_0, angles_0;
     wave_description.M, ϵP=(wave_description.ϵ == wave_description.P)) ≈
            1.8203662058242676 + 0.05351182972272878im
 
-gj_amplitude(wave2, σs_test, angles_test;
+gj_amplitude(wave2, σs_0, angles_0;
     wave_description.M, ϵP=2 * (wave_description.ϵ == wave_description.P) - 1) ≈
 value
 
-unpolarized_intensity(wave2, σs_test)
+# unpolarized_intensity(wave2, σs_0)
 
 
 ## # Compare all waves
 
+wavelist_df = let
+    mass_bin_name = "1540_1560"
+    folder = joinpath(@__DIR__, "..", "tests", "references")
+    filename = joinpath(folder, mass_bin_name * "_ref.json")
+    _waves_summary = open(filename) do io
+        JSON.parse(io)
+    end |> DataFrame
+    transform(_waves_summary,
+        :references => ByRow(x -> eval(Meta.parse(x))) => :references,
+        :weights => ByRow(x -> eval(Meta.parse(x))) => :weights
+    )
+end
 
-check_points = map(eachslice(readdlm(
-        joinpath(@__DIR__, "..", "tests", "references", "amplitudes_point1.txt")); dims=1)) do x
-    complex(x...)
-end[2:end]
 
-wavelist_df = DataFrame(readdlm(
-        joinpath(@__DIR__, "..", "tests", "references", "waves.txt")), [:wn, :name, :J, :P, :M, :ϵ, :S, :L])
-wavelist_df = wavelist_df[2:end, :]
+check_points = wavelist_df.references
 
+τ1_ref = (
+    σ1=0.6311001857724697,
+    cosθ1=-0.36619233111451877, ϕ1=0.09298675596700612,
+    cosθ23=-0.611301179735489, ϕ23=0.6244178754076133, s=2.3253174651821458)
+# 
+σs_ref, angles_ref = let
+    τ = τ1_ref
+    _σs = let
+        @unpack σ1 = τ
+        σ2 = σ2of1(τ.cosθ23, σ1, masses(wave2)^2)
+        Invariants(masses(wave2); σ1, σ2)
+    end
+    _angles = (ϕ=τ.ϕ1, cosθ=τ.cosθ1, χ=τ.ϕ23)
+    _σs, _angles
+end
 
 computed_values = map(eachrow(wavelist_df)) do wave_description
-    wave = build_compass_model(wave_description, sqrt(phsp.s))
-    gj_amplitude(wave, σs_test, angles_test;
+    _wave = build_compass_model(wave_description; m0=sqrt(τ1_ref.s))
+    gj_amplitude(_wave, σs_ref, angles_ref;
         wave_description.M, ϵP=2 * (wave_description.ϵ == wave_description.P) - 1)
 end
 
