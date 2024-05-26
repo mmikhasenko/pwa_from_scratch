@@ -1,4 +1,4 @@
-module masses
+module Masses
 const global mπ = 0.139
 const global mπ2 = mπ^2
 const global mρ = 0.7755
@@ -9,7 +9,7 @@ export mπ, mπ2, mρ, mρ2, mτ, mτ2
 end
 
 module isobars
-using ..masses: mπ, mπ2
+using ..Masses: mπ, mπ2
 export λ, U0, U1, f1_I, f1_II, r1
 
 """

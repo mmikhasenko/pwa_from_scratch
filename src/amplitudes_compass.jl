@@ -1,5 +1,5 @@
 module amplitudes_compass
-# using masses: mπ, mπ2
+# using Masses: mπ, mπ2
 using QuadGK  # needed for waves notmalization
 using DelimitedFiles
 using ..DalitzPlotAnalysis: λ, change_basis, Z, WignerDϵ, WignerD, Wignerd, ClebschGordon

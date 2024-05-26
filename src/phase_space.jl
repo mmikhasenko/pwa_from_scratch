@@ -6,7 +6,7 @@ using Cuba
 push!(LOAD_PATH, ENV["HOME"] * "/Documents/amplitude_analysis/modules")
 
 using isobars
-using masses
+using Masses
 using DalitzPlotAnalysis
 
 function phsp(s)

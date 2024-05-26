@@ -13,7 +13,7 @@ begin
     Pkg.activate(".")
 
     using PartialWavesFromScratch
-    using PartialWavesFromScratch.masses
+    using PartialWavesFromScratch.Masses
     import PartialWavesFromScratch.amplitudes_compass: get_wavelist, get_wavenames, get_wavebasis
 
     using Plots
