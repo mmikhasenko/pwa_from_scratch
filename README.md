@@ -2,10 +2,10 @@
 
 ## Running analysis
 
-1. Precalculation: `examples/precalculation.jl`
-2. Compute integrals: `examples/integrals.jl`
-3. Compute integrals: `examples/integrals_fu.jl`
-4. Perform fit: `examples/llhfit.jl`
+1. Precalculation: `analysis/02_precalculation.jl`
+2. Compute integrals: `analysis/03_integrals.jl`
+3. Compute integrals: `analysis/04_integrals_fu.jl`
+4. Perform fit: `analysis/05_llhfit.jl`
 
 
 ## Validation of integrals
