@@ -374,13 +374,13 @@ using OrderedCollections
 
 
 function lineshape_parser(lineshape)
-    !(lineshape isa ProductFlexFunc && lineshape.F1 isa ScaleFlexFunc && lineshape.F1.F isa ProductFlexFunc) &&
+    !(lineshape isa ProductFlexFunc && lineshape.F1 isa ProductFlexFunc) &&
         error("The linehshape is expected to be `((bw * ff) * norm) * ff`, while it is $(typeof(lineshape)), $(typeof(lineshape.F1))")
 
     appendix = Dict()
     FF_production_dict, _ = serializeToDict(lineshape.F2.F)
-    scattering_dict, _ = serializeToDict(lineshape.F1.F.F1)
-    FF_decay_dict, _ = serializeToDict(lineshape.F1.F.F2.F)
+    scattering_dict, _ = serializeToDict(lineshape.F1.F1)
+    FF_decay_dict, _ = serializeToDict(lineshape.F1.F2.F)
     # 
     mass_value = haskey(scattering_dict, :mass) ? scattering_dict[:mass] : 0.6
     mass_str = trunc(Int, mass_value * 1000) |> string
@@ -433,11 +433,34 @@ function serialize_with_hs3(model, J, P, M)
 end
 
 
-few_models_dict = map(eachrow(all_models[1:5, :])) do row
-    serialize_with_hs3(row.model, row.J, row.P, row.M)
+
+getx(x::ScaleFlexFunc) = x.S
+getx(x::ProductFlexFunc) = getx(x.F1) * getx(x.F2)
+getx(x) = 1.0
+
+function shift_const_from_lineshape_to_weight(model)
+    new_chains = map(model.chains) do ch
+        @assert (ch.Xlineshape.F1 isa ScaleFlexFunc) "Lineshape is not ScaleFlexFunc, its type is $(typeof(ch.Xlineshape))"
+        ch = DecayChain(;
+            Xlineshape=ch.Xlineshape.F1.F * ch.Xlineshape.F2,
+            ch.tbs, ch.Hij, ch.HRk, ch.k, ch.two_j)
+    end
+    _model = @set model.chains = new_chains
+    # 
+    scaling_factors = map(model.chains) do ch
+        getx(ch.Xlineshape)
+    end
+    return @set _model.couplings = _model.couplings .* scaling_factors
 end
 
 
+few_models_dict = map(eachrow(all_models[1:5, :])) do row
+    _model = shift_const_from_lineshape_to_weight(row.model)
+    serialize_with_hs3(_model, row.J, row.P, row.M)
+end
+
+
+# ## Combine several models
 
 few_models_dict[1]
 _combined = LittleDict(
