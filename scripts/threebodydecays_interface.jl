@@ -9,6 +9,7 @@ using Setfield
 
 # ## Lineshapes
 using HadronicLineshapes
+using ThreeBodyDecaysIO
 
 @with_kw struct BreitWignerRhoNoSqrt <: HadronicLineshapes.AbstractFlexFunc
     m::Float64
@@ -240,7 +241,7 @@ wave2 = build_compass_model(wave_description; m0=sqrt(τ1_0.s))
 @assert wave2.chains[2].Xlineshape(σs_0[3]) ≈ -2.064664920993486 + 0.8309945337099337im
 
 cal_test = gj_amplitude(wave2[1], σs_0, angles_0;
-    wave_description.M, ϵP=(wave_description.ϵ == wave_description.P)) ≈
+    wave_description.M, ϵP=2(wave_description.ϵ == wave_description.P) - 1) ≈
            1.8203662058242676 + 0.05351182972272878im
 
 @assert gj_amplitude(wave2, σs_0, angles_0;
@@ -253,26 +254,28 @@ cal_test = gj_amplitude(wave2[1], σs_0, angles_0;
 mass_bin_name = "1540_1560"
 m0_bin_center = 1.55 # GeV
 
-wavelist_df = let
+content = let
     folder = joinpath(@__DIR__, "..", "tests", "references")
     filename = joinpath(folder, mass_bin_name * "_ref.json")
-    _waves_summary = open(filename) do io
+    open(filename) do io
         JSON.parse(io)
-    end |> DataFrame
-    transform(_waves_summary,
-        :references => ByRow(x -> eval(Meta.parse(x))) => :references,
-        :weights => ByRow(x -> eval(Meta.parse(x))) => :weights
-    )
+    end
 end
+
+wavelist_df = transform(DataFrame(content["summary"]),
+    :references => ByRow(x -> eval(Meta.parse(x))) => :references,
+    :weights => ByRow(x -> eval(Meta.parse(x))) => :weights
+)
 @subset! wavelist_df :weights .!= 0
+
 
 
 check_points = wavelist_df.references
 
-τ1_ref = (
-    σ1=0.6311001857724697,
-    cosθ1=-0.36619233111451877, ϕ1=0.09298675596700612,
-    cosθ23=-0.611301179735489, ϕ23=0.6244178754076133, s=2.3253174651821458)
+τ1_ref = let
+    @unpack σ1, cosθ1, ϕ1, cosθ23, ϕ23, s = content["test_point"]
+    (; σ1, cosθ1, ϕ1, cosθ23, ϕ23, s)
+end
 # 
 σs_ref, angles_ref = let
     τ = τ1_ref
@@ -301,6 +304,7 @@ df_comp.status = map(x -> x < 1e-8 ? "🍏" : "🧧", df_comp.absdiff)
 select(df_comp, [:name, :absdiff, :status])
 
 
+
 # ## Build all models
 
 all_waves = map(eachrow(wavelist_df)) do (wave_description)
@@ -309,7 +313,7 @@ all_waves = map(eachrow(wavelist_df)) do (wave_description)
     @set _two_waves.couplings = _two_waves.couplings .* weights
 end
 
-gp = groupby(wavelist_df, [:J, :P, :M])
+gp = groupby(wavelist_df, [:J, :P, :M, :ϵ])
 all_models = combine(gp) do sdf
     all_waves = map(eachrow(sdf)) do wave_description
         @unpack weights = wave_description
@@ -317,16 +321,50 @@ all_models = combine(gp) do sdf
         @set _two_waves.couplings = _two_waves.couplings .* weights
     end
     model = vcat(all_waves...)
+    @unpack P, M, ϵ = sdf[1, :]
+    ϵP = 2 * (ϵ == P) - 1
+    amplitude_value = gj_amplitude(model, σs_ref, angles_ref; M, ϵP)
+
+    intensity = unpolarized_intensity(model, σs_ref)
+    (; model, intensity, amplitude_value)
 end
 
+
+
+
+amplitude_summary = DataFrame(content["amplitude_summary"])
+transform!(amplitude_summary, [:averaged_unpolarized_intensity, :J] => ByRow() do I, J
+        I * (2J + 1)
+    end => :intensity_ref,
+    :amplitude => ByRow(x -> eval(Meta.parse(x))) => :amplitude_ref)
+
+sectors_comparison = leftjoin(all_models, amplitude_summary, on=[:J, :P, :M, :ϵ])
+
+amplitude_comparison = select(sectors_comparison, :J, :P, :M, :amplitude_value, :amplitude_ref,
+    [:amplitude_value, :amplitude_ref] => ByRow() do a, a0
+        abs(a0 - a)
+    end => :deviation)
+
+intensity_comparison = select(sectors_comparison, :J, :P, :M, :intensity, :intensity_ref,
+    [:intensity, :intensity_ref] => ByRow() do i, (i0, δi0)
+        abs(i0 - i) / δi0
+    end => :deviation
+)
 
 using Plots
 
 let i = 7
-    model = all_models.x1[i]
+    model = all_models.model[i]
     @unpack J, P, M = all_models[i, :]
     plot(masses(model), Base.Fix1(unpolarized_intensity, model); iσx=1, iσy=3, title="JP=$J$P, M=$M")
 end
+
+
+
+
+
+
+
 
 
 # ## Serialization
@@ -364,7 +402,7 @@ dict = let ind = 1
     P = all_models.M[ind]
     model_name = "compass_3pi_JP=$(J)$(P)_M=$(M)_$(mass_bin_name)"
     # 
-    model = all_models.x1[ind]
+    model = all_models.model[ind]
     decay_description, functions = serializeToDict(model;
         lineshape_parser, particle_labels=("pi-", "pi+", "pi-", "X_3pi"))
     # 
@@ -383,12 +421,12 @@ dict = let ind = 1
     J = all_models.J[ind]
     M = all_models.M[ind]
     P = all_models.M[ind]
-    model = all_models.x1[1]
+    model = all_models.model[1]
     serialize_with_hs3(model, J, P, M)
 end
 
 few_models_dict = map(eachrow(all_models[1:5, :])) do row
-    serialize_with_hs3(row.x1, row.J, row.P, row.M)
+    serialize_with_hs3(row.model, row.J, row.P, row.M)
 end
 
 
