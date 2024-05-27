@@ -411,19 +411,27 @@ end
 
 
 function serialize_with_hs3(model, J, P, M)
+
+    ref_topology_k = 1
+    @assert model.chains[1].k == ref_topology_k "The reference topology is taken from the first chain currently"
     model_name = "compass_3pi_JP=$(J)$(P)_M=$(M)_$(mass_bin_name)"
     decay_description, functions = serializeToDict(model;
         lineshape_parser, particle_labels=("pi-", "pi+", "pi-", "X_3pi"))
-    add_hs3_fields(decay_description, functions, model_name)
+    _dict = add_hs3_fields(decay_description, functions, model_name)
+    # 
+    ms = masses(model)
+    validation_points = [
+        x2σs([0.1, 0.3], ms; k=1),
+        x2σs([0.1, 0.3], ms; k=2),
+        x2σs([0.1, 0.3], ms; k=3)]
+    validation = validation_section(model, validation_points;
+        k=ref_topology_k,
+        point_names="validation_point" .* string.(1:3),
+        model_name)
+    # 
+    merge(_dict, validation)
 end
 
-dict = let ind = 1
-    J = all_models.J[ind]
-    M = all_models.M[ind]
-    P = all_models.M[ind]
-    model = all_models.model[1]
-    serialize_with_hs3(model, J, P, M)
-end
 
 few_models_dict = map(eachrow(all_models[1:5, :])) do row
     serialize_with_hs3(row.model, row.J, row.P, row.M)
@@ -436,10 +444,11 @@ _combined = LittleDict(
     :distributions => [_dict[:distributions][1] for _dict in few_models_dict],
     :functions => unique(x -> x[:name], vcat((_dict[:functions] for _dict in few_models_dict)...)),
     :domains => few_models_dict[1][:domains],
-    :misc => few_models_dict[1][:misc],
+    :misc => Dict(
+        :amplitude_model_checksums => vcat((_dict[:misc][:amplitude_model_checksums] for _dict in few_models_dict)...),
+    ),
     :parameter_points => few_models_dict[1][:parameter_points]
 )
-
 
 open("compass_3pi_$(mass_bin_name).json", "w") do io
     JSON.print(io, _combined, 2)
