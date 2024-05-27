@@ -119,8 +119,11 @@ sdf = groupby(models_together, [:J, :P, :M, :ϵ])
 amplitude_and_intensity = combine(sdf) do df
     cv = df.weights
     bv = df.basis
+    J = df.J[1]
     amplitude = sum(c * b(τ1_test...) for (c, b) in zip(cv, bv))
-    averaged_unpolarized_intensity = averaged_unpolarized_intensity_with_angles(τ1_test, bv, cv; Nd=50000)
+    averaged_unpolarized_intensity =
+        averaged_unpolarized_intensity_with_angles(τ1_test, bv, cv; Nd=50000) .*
+        (2J + 1)
     (; amplitude, averaged_unpolarized_intensity)
 end
 

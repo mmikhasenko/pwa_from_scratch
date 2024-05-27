@@ -333,9 +333,8 @@ end
 
 
 amplitude_summary = DataFrame(content["amplitude_summary"])
-transform!(amplitude_summary, [:averaged_unpolarized_intensity, :J] => ByRow() do I, J
-        I * (2J + 1)
-    end => :intensity_ref,
+transform!(amplitude_summary, :averaged_unpolarized_intensity =>
+        identity => :intensity_ref,
     :amplitude => ByRow(x -> eval(Meta.parse(x))) => :amplitude_ref)
 
 sectors_comparison = leftjoin(all_models, amplitude_summary, on=[:J, :P, :M, :ϵ])
@@ -423,10 +422,11 @@ function serialize_with_hs3(model, J, P, M)
     validation_points = [
         x2σs([0.1, 0.3], ms; k=1),
         x2σs([0.1, 0.3], ms; k=2),
-        x2σs([0.1, 0.3], ms; k=3)]
+        x2σs([0.1, 0.3], ms; k=3),
+        σs_ref]
     validation = validation_section(model, validation_points;
         k=ref_topology_k,
-        point_names="validation_point" .* string.(1:3),
+        point_names="validation_point" .* string.(1:4),
         model_name)
     # 
     merge(_dict, validation)
