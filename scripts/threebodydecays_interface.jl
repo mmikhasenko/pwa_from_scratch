@@ -31,6 +31,10 @@ function ThreeBodyDecaysIO.serializeToDict(x::BreitWignerRhoNoSqrt)
     appendix = Dict()
     return (dict, appendix)
 end
+function ThreeBodyDecaysIO.dict2instance(::Type{BreitWignerRhoNoSqrt}, dict)
+    @unpack mass, width, mπ, d = dict
+    return BreitWignerRhoNoSqrt(mass, width, mπ, d)
+end
 
 
 @with_kw struct BreitWignerRho3XQrt <: HadronicLineshapes.AbstractFlexFunc
@@ -46,6 +50,10 @@ function ThreeBodyDecaysIO.serializeToDict(x::BreitWignerRho3XQrt)
     dict = LittleDict{Symbol,Any}(pairs((; type, mass=x.m, width=x.Γ)))
     appendix = Dict()
     return (dict, appendix)
+end
+function ThreeBodyDecaysIO.dict2instance(::Type{BreitWignerRho3XQrt}, dict)
+    @unpack mass, width = dict
+    return BreitWignerRho3XQrt(mass, width)
 end
 
 
@@ -80,6 +88,10 @@ function ThreeBodyDecaysIO.serializeToDict(x::KatchaevSigma)
     dict = LittleDict{Symbol,Any}(pairs((; type, poles, residues, nonpole_expansion_coeffs)))
     appendix = Dict()
     return (dict, appendix)
+end
+function ThreeBodyDecaysIO.dict2instance(::Type{KatchaevSigma}, dict)
+    @unpack poles, residues, nonpole_expansion_coeffs = dict
+    return KatchaevSigma(poles, residues, nonpole_expansion_coeffs)
 end
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
@@ -374,20 +386,25 @@ using OrderedCollections
 
 function lineshape_parser(lineshape)
     !(lineshape isa ProductFlexFunc && lineshape.F1 isa ProductFlexFunc) &&
-        error("The linehshape is expected to be `((bw * ff) * norm) * ff`, while it is $(typeof(lineshape)), $(typeof(lineshape.F1))")
+        error("The linehshape is expected to be `((bw * ff)) * ff`, while it is $(typeof(lineshape)), $(typeof(lineshape.F1))")
 
-    appendix = Dict()
-    FF_production_dict, _ = serializeToDict(lineshape.F2.F)
-    scattering_dict, _ = serializeToDict(lineshape.F1.F1)
-    FF_decay_dict, _ = serializeToDict(lineshape.F1.F2.F)
+    FF_prod_func = lineshape.F2.F
+    scattering_func = lineshape.F1.F1
+    FF_decay_func = lineshape.F1.F2.F
+    # 
+    FF_production_dict, _ = serializeToDict(FF_prod_func)
+    scattering_dict, _ = serializeToDict(scattering_func)
+    FF_decay_dict, _ = serializeToDict(FF_decay_func)
     # 
     mass_value = haskey(scattering_dict, :mass) ? scattering_dict[:mass] : 0.6
     mass_str = trunc(Int, mass_value * 1000) |> string
     # 
-    FF_production = "X_BlattWeisskopf"
+    l, L = orbital_momentum(FF_decay_func), orbital_momentum(FF_prod_func)
+    FF_production = "X_BlattWeisskopf_L$(L)"
     scattering = "R($(mass_str))"
-    FF_decay = "subchannel_BlattWeisskopf_R($(mass_str))"
+    FF_decay = "subchannel_BlattWeisskopf_R($(mass_str))_l$(l)"
     # 
+    appendix = Dict()
     appendix[FF_production] = FF_production_dict
     appendix[scattering] = scattering_dict
     appendix[FF_decay] = FF_decay_dict
@@ -395,13 +412,36 @@ function lineshape_parser(lineshape)
     (; scattering, FF_production, FF_decay), appendix
 end
 
+
+
+getx(x::ScaleFlexFunc) = x.S
+getx(x::ProductFlexFunc) = getx(x.F1) * getx(x.F2)
+getx(x) = 1.0
+
+function shift_const_from_lineshape_to_weight(model)
+    new_chains = map(model.chains) do ch
+        @assert (ch.Xlineshape.F1 isa ScaleFlexFunc) "Lineshape is not ScaleFlexFunc, its type is $(typeof(ch.Xlineshape))"
+        ch = DecayChain(;
+            Xlineshape=ch.Xlineshape.F1.F * ch.Xlineshape.F2,
+            ch.tbs, ch.Hij, ch.HRk, ch.k, ch.two_j)
+    end
+    _model = @set model.chains = new_chains
+    # 
+    scaling_factors = map(model.chains) do ch
+        getx(ch.Xlineshape)
+    end
+    return @set _model.couplings = _model.couplings .* scaling_factors
+end
+
+
+
 dict = let ind = 1
     J = all_models.J[ind]
     M = all_models.M[ind]
     P = all_models.M[ind]
     model_name = "compass_3pi_JP=$(J)$(P)_M=$(M)_$(mass_bin_name)"
     # 
-    model = all_models.model[ind]
+    model = shift_const_from_lineshape_to_weight(all_models.model[ind])
     decay_description, functions = serializeToDict(model;
         lineshape_parser, particle_labels=("pi-", "pi+", "pi-", "X_3pi"))
     # 
@@ -434,31 +474,14 @@ end
 
 
 
-getx(x::ScaleFlexFunc) = x.S
-getx(x::ProductFlexFunc) = getx(x.F1) * getx(x.F2)
-getx(x) = 1.0
-
-function shift_const_from_lineshape_to_weight(model)
-    new_chains = map(model.chains) do ch
-        @assert (ch.Xlineshape.F1 isa ScaleFlexFunc) "Lineshape is not ScaleFlexFunc, its type is $(typeof(ch.Xlineshape))"
-        ch = DecayChain(;
-            Xlineshape=ch.Xlineshape.F1.F * ch.Xlineshape.F2,
-            ch.tbs, ch.Hij, ch.HRk, ch.k, ch.two_j)
-    end
-    _model = @set model.chains = new_chains
-    # 
-    scaling_factors = map(model.chains) do ch
-        getx(ch.Xlineshape)
-    end
-    return @set _model.couplings = _model.couplings .* scaling_factors
+which_sectors = map(zip(all_models.J, all_models.P, all_models.M)) do x
+    x ∈ [(1, "+", 0), (1, "-", 1), (2, "+", 1), (4, "+", 1)]
 end
 
-
-few_models_dict = map(eachrow(all_models[1:5, :])) do row
+few_models_dict = map(eachrow(all_models[which_sectors, :])) do row
     _model = shift_const_from_lineshape_to_weight(row.model)
     serialize_with_hs3(_model, row.J, row.P, row.M)
 end
-
 
 # ## Combine several models
 
@@ -472,6 +495,7 @@ _combined = LittleDict(
     ),
     :parameter_points => few_models_dict[1][:parameter_points]
 )
+sort!(_combined[:functions]; by=x -> x[:name])
 
 open("compass_3pi_$(mass_bin_name).json", "w") do io
     JSON.print(io, _combined, 2)
